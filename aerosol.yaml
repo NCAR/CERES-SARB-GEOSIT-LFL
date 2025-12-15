@@ -1,0 +1,136 @@
+filename_bands: ${HOME}/Data/Optics/SARB/LFL_bands.nc
+
+MAM4:
+    a1:
+        name: Accumulation
+        filename_rrtm: ${HOME}/Data/Optics/MAM4/mam4_mode1_rrtmg_aeronetdust_c141106.nc
+        filename_sarb: ${HOME}/Data/Optics/SARB/mam4_mode1_larc_c000002.v2.nc
+        types:
+            - BC
+            - POM
+            - SOA
+            - SU
+            - DU
+            - SS
+        soa_flavors: 5
+    a2:
+        name: Aitken
+        filename_rrtm: ${HOME}/Data/Optics/MAM4/mam4_mode2_rrtmg_aitkendust_c141106.nc
+        filename_sarb: ${HOME}/Data/Optics/SARB/mam4_mode2_larc_c000002.v2.nc
+        types:
+            - SOA
+            - SU
+            - DU
+            - SS
+        soa_flavors: 5
+    a3:
+        name: Coarse
+        filename_rrtm: ${HOME}/Data/Optics/MAM4/mam4_mode3_rrtmg_aeronetdust_c141106.nc
+        filename_sarb: ${HOME}/Data/Optics/SARB/mam4_mode3_larc_c000002.v2.nc
+        types:
+            - SU
+            - DU
+            - SS
+    a4:
+        name: Primary Carbon
+        filename_rrtm: ${HOME}/Data/Optics/MAM4/mam4_mode4_rrtmg_c130628.nc
+        filename_sarb: ${HOME}/Data/Optics/SARB/mam4_mode4_larc_c000002.v2.nc
+        types:
+            - BC
+            - POM
+
+Types:
+    WAT:
+        name: Water
+        filename: ${HOME}/Data/Optics/MERRA2/optics_WAT.nc
+        density: 1.0
+        hygroscopicity:
+            - None
+        plot_color: dodgerblue
+    ICE:
+        name: Ice
+        filename: ${HOME}/Data/Optics/MERRA2/optics_ICE.nc
+        density: 1.0
+        hygroscopicity:
+            - None
+        plot_color: aqua
+    BC:
+        name: Black Carbon
+        filename: ${HOME}/Data/Optics/MERRA2/optics_BC.v1_3.nc
+        density: 1.0
+        hygroscopicity:
+            - 0.01
+            - 0
+            - 0
+        plot_color: dimgray
+    BCPHO:
+        name: Hydrophobic Black Carbon
+        filename: ${HOME}/Data/Optics/MERRA2/optics_BC.v1_3.nc
+    BCPHI:
+        name: Hydrophilic Black Carbon
+        filename: ${HOME}/Data/Optics/MERRA2/optics_BC.v1_3.nc
+    POM:
+        name: Primary Organic Matter
+        filename: ${HOME}/Data/Optics/MERRA2/optics_OC.v1_3.nc
+        density: 1.8 # insoluble 2.0
+        hygroscopicity:
+            - 0.14
+            - 0
+            - 0
+        plot_color: darkgreen
+    SOA:
+        name: Secondary Organic Aerosol
+        filename: ${HOME}/Data/Optics/MERRA2/optics_OC.v1_3.nc
+        density: 1.8
+        hygroscopicity:
+            - 0.14
+            - 0
+            - 0
+        plot_color: green
+    OCPHO:
+        name: Hydrophobic Organic Carbon
+        filename: ${HOME}/Data/Optics/MERRA2/optics_OC.v1_3.nc
+    OCPHI:
+        name: Hydrophilic Organic Carbon
+        filename: ${HOME}/Data/Optics/MERRA2/optics_OC.v1_3.nc
+    SU:
+        name: Sulfate
+        filename: ${HOME}/Data/Optics/MERRA2/optics_SU.v1_3.nc
+        density: 1.7
+        hygroscopicity:
+            - 2.42848
+            - -3.85261
+            - 1.88159
+        plot_color: darkslateblue
+    DU:
+        name: Dust
+        filename: ${HOME}/Data/Optics/MERRA2/optics_DU.v14_2.nc
+        density: 2.6
+        hygroscopicity:
+            - 0.14
+            - 0
+            - 0
+        plot_color: saddlebrown
+    SS:
+        name: Sea Salt
+        filename: ${HOME}/Data/Optics/MERRA2/optics_SS.v3_3.nc
+        density: 2.2
+        hygroscopicity:
+            - 4.83257
+            - -6.92329
+            - 3.27805
+        plot_color: mediumturquoise
+    NI:
+        name: Nitrate
+        filename: ${HOME}/Data/Optics/MERRA2/opticsBands_NI.v2_5.nc
+        density: 1.7
+        hygroscopicity:
+            - 2.42848
+            - -3.85261
+            - 1.88159
+        plot_color: goldenrod
+
+Mixtures:
+    Maritime:
+        SS: 0.8
+        SU: 0.2
