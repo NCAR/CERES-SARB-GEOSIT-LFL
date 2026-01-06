@@ -340,7 +340,7 @@ if __name__ == '__main__':
     if args.ceres:
         # Point to production aerosol config and paths
         args.aerosol = 'aerosol_ceres.yaml'
-        args.datadir = '/CERES_prd/GMAO/GEOSIT'
+        args.datadir = '/CERES_prd/GMAO/'
         args.outdir = '/CERES/sarb/dfillmor/'
         args.file_pattern = os.path.join('GEOSIT', 'YYYY', 'MM', geos_it_filestr)
 
