@@ -122,7 +122,7 @@ Types:
         plot_color: mediumturquoise
     NI:
         name: Nitrate
-        filename: /CERES/sarb/dfillmor/Optics/MERRA2/opticsBands_NI.v2_5.nc
+        filename: /CERES/sarb/dfillmor/Optics/MERRA2/optics_NI.v2_5.nc
         density: 1.7
         hygroscopicity:
             - 2.42848

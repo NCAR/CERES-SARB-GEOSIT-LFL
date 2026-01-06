@@ -49,14 +49,14 @@ for BAND in "${BANDS[@]}"; do
     echo "Running species_optics.py for band $BAND"
 
     for SP in "${SPECIES_NO_BIN[@]}"; do
-        echo ">>> species_optics.py --species $SP --band $BAND ${EXTRA_ARGS[*]}"
-        python species_optics.py --species "$SP" --band "$BAND" "${EXTRA_ARGS[@]}"
+        echo ">>> species_optics.py --species $SP --band $BAND ${EXTRA_ARGS[*]:-}"
+        python species_optics.py --species "$SP" --band "$BAND" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     done
 
     for SP in "${SPECIES_WITH_BIN[@]}"; do
         for BIN in "${SIZE_BINS[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN --band $BAND ${EXTRA_ARGS[*]}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" --band "$BAND" "${EXTRA_ARGS[@]}"
+            echo ">>> species_optics.py --species $SP --size_bin $BIN --band $BAND ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --species "$SP" --size_bin "$BIN" --band "$BAND" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 
