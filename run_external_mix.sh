@@ -83,7 +83,7 @@ for BAND in "${BANDS[@]}"; do
         fi
     fi
 
-    echo ">>> external_mix.py --band $BAND ${EXTRA_ARGS[*]}"
-    python external_mix.py --band "$BAND" "${EXTRA_ARGS[@]}"
+    echo ">>> external_mix.py --band $BAND ${EXTRA_ARGS[*]:-}"
+    python external_mix.py --band "$BAND" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     echo "Finished external_mix.py for band $BAND"
 done
