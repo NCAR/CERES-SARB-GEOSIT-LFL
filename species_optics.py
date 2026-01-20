@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import logging
+import shutil
 import yaml
 import numpy as np
 import pandas as pd
@@ -71,7 +72,20 @@ def rh_interp(ds_coarse):
             coords={'lambda': ds_coarse.coords['lambda']})
 
 
-def read_aerosol_optics(filename, species, band):
+def copy_to_tmpdir(src_path, tmpdir):
+    """Copy a file to tmpdir if not already there, return local path."""
+    if tmpdir is None:
+        return src_path
+    os.makedirs(tmpdir, exist_ok=True)
+    basename = os.path.basename(src_path)
+    local_path = os.path.join(tmpdir, basename)
+    if not os.path.exists(local_path):
+        logging.info('Copying %s to %s', src_path, local_path)
+        shutil.copy2(src_path, local_path)
+    return local_path
+
+
+def read_aerosol_optics(filename, species, band, optics_tmpdir=None):
 
     logging.info(filename)
     with open(args.aerosol, 'r') as f:
@@ -87,14 +101,23 @@ def read_aerosol_optics(filename, species, band):
         logging.info('MERRA2 optics missing; using %s', geosit_optics)
         file_optics = geosit_optics
     logging.debug(file_optics)
-    ds_optics = xr.open_dataset(file_optics)
+
+    # Copy to local tmpdir if specified (avoids file locking)
+    file_optics_local = copy_to_tmpdir(file_optics, optics_tmpdir)
+    ds_optics = xr.open_dataset(file_optics_local)
     ds_optics_interp = rh_interp(ds_optics)
-    ds_optics_interp.to_netcdf(
-        file_optics.replace('.nc', '_interp.nc'))
+    # Write interpolated file to tmpdir if available, else beside original
+    if optics_tmpdir:
+        interp_path = os.path.join(optics_tmpdir,
+            os.path.basename(file_optics).replace('.nc', '_interp.nc'))
+    else:
+        interp_path = file_optics.replace('.nc', '_interp.nc')
+    ds_optics_interp.to_netcdf(interp_path)
 
     bands_file = os.path.expandvars(aerosol_config['filename_bands'])
     logging.debug('bands file: %s', bands_file)
-    ds_bands = xr.open_dataset(bands_file)
+    bands_file_local = copy_to_tmpdir(bands_file, optics_tmpdir)
+    ds_bands = xr.open_dataset(bands_file_local)
 
     return ds_optics_interp, ds_bands
 
@@ -325,6 +348,8 @@ if __name__ == '__main__':
         #     'MERRA2_300.inst3_3d_aer_Nv.YYYYMMDD.nc4'))
     parser.add_argument('--ceres', action='store_true',
         help='use CERES production paths and aerosol_ceres.yaml')
+    parser.add_argument('--optics_tmpdir', type=str, default=None,
+        help='local temp directory for optics files (avoids file locking)')
     args = parser.parse_args()
 
     if os.path.isdir(args.datadir):
@@ -351,7 +376,8 @@ if __name__ == '__main__':
     logging.basicConfig(stream=args.logfile, level=logging_level)
 
     ds_optics, ds_bands \
-        = read_aerosol_optics(args.aerosol, args.species, args.band)
+        = read_aerosol_optics(args.aerosol, args.species, args.band,
+            optics_tmpdir=args.optics_tmpdir)
 
     wvls = ds_optics.coords['lambda'].values * 1.0e6
     nwvl = len(wvls)
