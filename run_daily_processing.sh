@@ -16,6 +16,7 @@ usage() {
     echo "  --logdir DIR    Directory for log files (default: ./logs)" >&2
     echo "  --max-jobs N    Maximum concurrent background jobs (default: unlimited)" >&2
     echo "  --dry-run       Print what would be executed without running" >&2
+    echo "  --detach        Exit after launching jobs (don't wait for completion)" >&2
     echo "  --ceres         Pass --ceres flag to processing scripts" >&2
     echo "  --datadir DIR   Pass --datadir to processing scripts" >&2
     echo "" >&2
@@ -29,6 +30,7 @@ END_DATE=""
 LOGDIR="./logs"
 MAX_JOBS=0
 DRY_RUN=0
+DETACH=0
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -51,6 +53,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=1
+            shift
+            ;;
+        --detach)
+            DETACH=1
             shift
             ;;
         --ceres)
@@ -76,12 +82,35 @@ if [[ -z "$START_DATE" || -z "$END_DATE" ]]; then
     usage
 fi
 
+# Portable date functions (works on both Linux and macOS)
+date_to_sec() {
+    local d="$1"
+    if date --version >/dev/null 2>&1; then
+        # GNU date (Linux)
+        date -d "$d" +%s
+    else
+        # BSD date (macOS)
+        date -j -f "%Y-%m-%d" "$d" +%s
+    fi
+}
+
+sec_to_date() {
+    local s="$1"
+    if date --version >/dev/null 2>&1; then
+        # GNU date (Linux)
+        date -d "@$s" +%Y-%m-%d
+    else
+        # BSD date (macOS)
+        date -j -f "%s" "$s" +%Y-%m-%d
+    fi
+}
+
 # Validate date format
-if ! date -j -f "%Y-%m-%d" "$START_DATE" "+%Y-%m-%d" >/dev/null 2>&1; then
+if ! date_to_sec "$START_DATE" >/dev/null 2>&1; then
     echo "Error: Invalid start date format. Use YYYY-MM-DD" >&2
     exit 1
 fi
-if ! date -j -f "%Y-%m-%d" "$END_DATE" "+%Y-%m-%d" >/dev/null 2>&1; then
+if ! date_to_sec "$END_DATE" >/dev/null 2>&1; then
     echo "Error: Invalid end date format. Use YYYY-MM-DD" >&2
     exit 1
 fi
@@ -89,9 +118,9 @@ fi
 # Create log directory
 mkdir -p "$LOGDIR"
 
-# Convert dates to seconds for iteration (macOS date syntax)
-start_sec=$(date -j -f "%Y-%m-%d" "$START_DATE" "+%s")
-end_sec=$(date -j -f "%Y-%m-%d" "$END_DATE" "+%s")
+# Convert dates to seconds for iteration
+start_sec=$(date_to_sec "$START_DATE")
+end_sec=$(date_to_sec "$END_DATE")
 
 if (( start_sec > end_sec )); then
     echo "Error: Start date must be before or equal to end date" >&2
@@ -178,14 +207,23 @@ echo "Log dir:    $LOGDIR"
 if (( MAX_JOBS > 0 )); then
     echo "Max jobs:   $MAX_JOBS"
 fi
+if (( DETACH )); then
+    echo "Mode:       detach (will exit after launching)"
+fi
 echo ""
+
+# PID file for tracking jobs
+PIDFILE="${LOGDIR}/jobs.pid"
+
+# Clear/create PID file
+> "$PIDFILE"
 
 # Iterate over each day
 current_sec=$start_sec
 day_count=0
 
 while (( current_sec <= end_sec )); do
-    current_date=$(date -j -f "%s" "$current_sec" "+%Y-%m-%d")
+    current_date=$(sec_to_date "$current_sec")
     day_count=$((day_count + 1))
 
     if (( DRY_RUN )); then
@@ -195,8 +233,10 @@ while (( current_sec <= end_sec )); do
 
         echo "Launching background job for $current_date (log: ${LOGDIR}/processing_${current_date}.log)"
         run_day "$current_date" &
-        PIDS+=($!)
+        pid=$!
+        PIDS+=($pid)
         JOB_DATES+=("$current_date")
+        echo "$pid $current_date" >> "$PIDFILE"
     fi
 
     # Advance to next day (add 86400 seconds)
@@ -211,6 +251,18 @@ fi
 
 echo ""
 echo "Launched $day_count background jobs."
+echo "PIDs saved to: $PIDFILE"
+
+if (( DETACH )); then
+    echo ""
+    echo "Detaching. Monitor progress with:"
+    echo "  tail -f ${LOGDIR}/processing_*.log"
+    echo ""
+    echo "To kill all jobs:"
+    echo "  ${SCRIPT_DIR}/kill_daily_jobs.sh ${PIDFILE}"
+    exit 0
+fi
+
 echo "Waiting for all jobs to complete..."
 
 # Wait for all background jobs
