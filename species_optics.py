@@ -318,9 +318,9 @@ if __name__ == '__main__':
         default='2010-01-01T00',
         help='end datetime (YYYY-MM-DDTHH)')
     geos_it_filestr = \
-        'GEOS.it.asm.aer_inst_3hr_glo_L576x361_v72.GEOS5294.2010-01-01T0000.V01.nc4'
+        'GEOS.it.asm.aer_inst_3hr_glo_L576x361_v72.GEOS5294.YYYY-MM-DDTHH00.V01.nc4'
     parser.add_argument('--file_pattern', type=str,
-        default=os.path.join('GEOSIT', '2010', '01', geos_it_filestr))
+        default=os.path.join('GEOSIT', 'YYYY', 'MM', geos_it_filestr))
         # default=os.path.join('MERRA2', 'YYYY', 'MM',
         #     'MERRA2_300.inst3_3d_aer_Nv.YYYYMMDD.nc4'))
     parser.add_argument('--ceres', action='store_true',
