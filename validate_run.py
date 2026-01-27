@@ -139,15 +139,14 @@ def main():
           f'{len(all_missing):>8} {len(all_zero):>10}')
 
     if all_missing or all_zero:
-        print()
-        if all_missing:
-            print(f'Missing files ({len(all_missing)}):')
+        # Write full list to log file
+        log_path = 'validate_run.log'
+        with open(log_path, 'w') as f:
             for p in all_missing:
-                print(f'  {p}')
-        if all_zero:
-            print(f'\nZero-size files ({len(all_zero)}):')
+                f.write(f'MISSING  {p}\n')
             for p in all_zero:
-                print(f'  {p}')
+                f.write(f'ZERO     {p}\n')
+        print(f'\nFull list written to {log_path}')
         sys.exit(1)
     else:
         print('\nAll files present and non-empty.')
