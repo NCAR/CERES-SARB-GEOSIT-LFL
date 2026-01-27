@@ -109,6 +109,11 @@ def main():
         print(f'\nTotal expected files: {len(paths)}')
         return
 
+    # Remove stale log from a previous run
+    log_path = 'validate_run.log'
+    if os.path.exists(log_path):
+        os.remove(log_path)
+
     # Check files and report per-day summaries
     all_missing = []
     all_zero = []
@@ -116,7 +121,7 @@ def main():
     for p in paths:
         # Extract date from path (YYYY-MM-DDTHH00)
         basename = os.path.basename(p)
-        date_part = basename.split('.')[-2]  # YYYY-MM-DDTHH00
+        date_part = basename.split('.')[-3]  # YYYY-MM-DDTHH00
         day = date_part[:10]  # YYYY-MM-DD
         day_groups.setdefault(day, []).append(p)
 
@@ -140,7 +145,6 @@ def main():
 
     if all_missing or all_zero:
         # Write full list to log file
-        log_path = 'validate_run.log'
         with open(log_path, 'w') as f:
             for p in all_missing:
                 f.write(f'MISSING  {p}\n')
