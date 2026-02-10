@@ -6,10 +6,11 @@ import pandas as pd
 
 
 SPECIES_NO_BIN = [
-    'SO4', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC', 'NO3AN1'
+    'SO4', 'SO4002', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC'
 ]
 SPECIES_WITH_BIN = [f'SS{n:03d}' for n in range(1, 6)] \
-    + [f'DU{n:03d}' for n in range(1, 6)]
+    + [f'DU{n:03d}' for n in range(1, 6)] \
+    + [f'NO3AN{n}' for n in range(1, 4)]
 ALL_SPECIES = SPECIES_NO_BIN + SPECIES_WITH_BIN
 
 SW_BANDS = [f'SW{n:02d}' for n in range(1, 15)]

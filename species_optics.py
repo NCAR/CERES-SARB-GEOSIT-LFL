@@ -144,15 +144,22 @@ def process_file(filename, filename_out,
     dtau_s = q_s k_s dp / g
     """
 
+    species_label = None
     if species == 'SS' or species == 'DU':
         species += size_bin
         idx_size = int(size_bin) - 1
     elif species == 'NO3AN':
-        # Nitrate only uses the first size bin
-        species = 'NO3AN1'
-        idx_size = 0
+        idx_size = int(size_bin) - 1
+        species += str(idx_size + 1)
+    elif species == 'SO4':
+        idx_size = int(size_bin) - 1
+        if idx_size > 0:
+            species_label = species + size_bin
     else:
         idx_size = 0
+
+    if species_label is None:
+        species_label = species
 
     tau_thresh = 0.00001
 
@@ -275,7 +282,7 @@ def process_file(filename, filename_out,
             + __version__
         filename_labeled_out \
             = filename_out.replace('GEOS5294.',
-                'GEOS5294.' + species + '_' + band.upper() + '.')
+                'GEOS5294.' + species_label + '_' + band.upper() + '.')
                 # '_%.2dZ.nc' % (3 * t)).replace('Nv.',
                 # 'Nv.' + species + '_' + band.upper() + '.')
         # logging.info('writing:' + filename_labeled_out)

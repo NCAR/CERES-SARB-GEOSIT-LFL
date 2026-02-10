@@ -19,10 +19,11 @@ __version__ = 'v0.2'
 # Species lists (includes nitrate and size-binned species)
 # Use actual output file species names; allow aliases for convenience.
 SPECIES_NO_BIN = [
-    'SO4', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC', 'NO3AN1'
+    'SO4', 'SO4002', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC'
 ]
 SPECIES_WITH_BIN = [f'SS{n:03d}' for n in range(1, 6)] \
-    + [f'DU{n:03d}' for n in range(1, 6)]
+    + [f'DU{n:03d}' for n in range(1, 6)] \
+    + [f'NO3AN{n}' for n in range(1, 4)]
 ALL_SPECIES = SPECIES_NO_BIN + SPECIES_WITH_BIN
 
 SPECIES_ALIAS = {
@@ -31,7 +32,9 @@ SPECIES_ALIAS = {
     'OCPHI': 'OCPHILIC',
     'BCPHO': 'BCPHOBIC',
     'BCPHI': 'BCPHILIC',
-    'NI': 'NO3AN1',
+    'NI001': 'NO3AN1',
+    'NI002': 'NO3AN2',
+    'NI003': 'NO3AN3',
 }
 
 

@@ -63,7 +63,7 @@ def plot_lon_lat(plotfile, plotname,
     field_mean = np.nanmean(field_values)
 
     extend_option = 'both' if symmetric else 'max' 
-    cmap_option = plt.cm.bwr if symmetric else plt.cm.turbo
+    cmap_option = plt.cm.RdBu_r if symmetric else plt.cm.turbo
 
     cp = ax.contourf(lon_mesh, lat_mesh, field_values,
         levels, cmap=cmap_option, extend=extend_option,
@@ -91,6 +91,6 @@ def plot_lon_lat(plotfile, plotname,
 
     png_file = os.path.join(plotfile) + '.png'
     pdf_file = os.path.join(plotfile) + '.pdf'
-    plt.savefig(png_file, bbox_inches='tight', dpi=300)
+    plt.savefig(png_file, bbox_inches='tight', dpi=720)
     plt.savefig(pdf_file, bbox_inches='tight')
     plt.clf()
