@@ -74,14 +74,12 @@ if [[ -n "$OPTICS_TMPDIR" ]]; then
 fi
 
 # Species without size bins
-SPECIES_NO_BIN=(OCPHO OCPHI BCPHO BCPHI)
+SPECIES_NO_BIN=(SU OCPHO OCPHI BCPHO BCPHI)
 # Species that require explicit size bins
 SPECIES_5BIN=(SS DU)
 SPECIES_3BIN=(NI)
-SPECIES_2BIN=(SU)
 SIZE_BINS_5=(001 002 003 004 005)
 SIZE_BINS_3=(001 002 003)
-SIZE_BINS_2=(001 002)
 
 # Build band/wvl argument for Python script
 if [[ -n "$WVL" ]]; then
@@ -113,13 +111,6 @@ for BAND in "${BAND_LIST[@]}"; do
 
     for SP in "${SPECIES_3BIN[@]}"; do
         for BIN in "${SIZE_BINS_3[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
-        done
-    done
-
-    for SP in "${SPECIES_2BIN[@]}"; do
-        for BIN in "${SIZE_BINS_2[@]}"; do
             echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
             python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done

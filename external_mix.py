@@ -19,7 +19,7 @@ __version__ = 'v0.2'
 # Species lists (includes nitrate and size-binned species)
 # Use actual output file species names; allow aliases for convenience.
 SPECIES_NO_BIN = [
-    'SO4', 'SO4002', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC'
+    'SO4', 'OCPHOBIC', 'OCPHILIC', 'BCPHOBIC', 'BCPHILIC'
 ]
 SPECIES_WITH_BIN = [f'SS{n:03d}' for n in range(1, 6)] \
     + [f'DU{n:03d}' for n in range(1, 6)] \

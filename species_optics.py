@@ -152,9 +152,9 @@ def process_file(filename, filename_out,
         idx_size = int(size_bin) - 1
         species += str(idx_size + 1)
     elif species == 'SO4':
-        idx_size = int(size_bin) - 1
-        if idx_size > 0:
-            species_label = species + size_bin
+        idx_size = 0
+    elif species == 'OCPHILIC':
+        idx_size = 1  # hygroscopic radius bin
     else:
         idx_size = 0
 
