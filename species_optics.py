@@ -123,7 +123,7 @@ def read_aerosol_optics(filename, species, band, optics_tmpdir=None):
 
 
 def process_file(filename, filename_out,
-    ds_optics, species, size_bin, band,
+    ds_optics, species, size_bin, band_label,
     wvl_min, wvl_max, idx_wvl):
 
     date_str = filename.split('.')[2]
@@ -274,7 +274,7 @@ def process_file(filename, filename_out,
         ds_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
         ds_out.attrs['input_filename'] = filename
         ds_out.attrs['processing_datetime'] = utc_time_str
-        ds_out.attrs['Langley_Fu_Liou_band'] = band.upper()
+        ds_out.attrs['Langley_Fu_Liou_band'] = band_label
         ds_out.attrs['band_wvl_min_micron'] = wvl_min
         ds_out.attrs['band_wvl_max_micron'] = wvl_max
         ds_out.attrs['script_version'] \
@@ -282,7 +282,7 @@ def process_file(filename, filename_out,
             + __version__
         filename_labeled_out \
             = filename_out.replace('GEOS5294.',
-                'GEOS5294.' + species_label + '_' + band.upper() + '.')
+                'GEOS5294.' + species_label + '_' + band_label + '.')
                 # '_%.2dZ.nc' % (3 * t)).replace('Nv.',
                 # 'Nv.' + species + '_' + band.upper() + '.')
         # logging.info('writing:' + filename_labeled_out)
@@ -303,7 +303,7 @@ def process_file(filename, filename_out,
         ds_sub_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
         ds_sub_out.attrs['input_filename'] = filename
         ds_sub_out.attrs['processing_datetime'] = utc_time_str
-        ds_sub_out.attrs['Langley_Fu_Liou_band'] = band.upper()
+        ds_sub_out.attrs['Langley_Fu_Liou_band'] = band_label
         ds_sub_out.attrs['band_wvl_min_micron'] = wvl_min
         ds_sub_out.attrs['band_wvl_max_micron'] = wvl_max
         ds_sub_out.attrs['script_version'] \
@@ -340,7 +340,10 @@ if __name__ == '__main__':
     parser.add_argument('--size_bin', type=str,
         default=os.path.join('001'),
         help='aerosol size bin')
-    parser.add_argument('--band', type=str, default='sw01')
+    parser.add_argument('--band', type=str, default=None,
+        help='LFL spectral band (e.g. sw05, lw01)')
+    parser.add_argument('--wvl', type=float, default=None,
+        help='single wavelength in nm (e.g. 550)')
     parser.add_argument('--start', type=str,
         default='2010-01-01T00',
         help='start datetime (YYYY-MM-DDTHH)')
@@ -382,8 +385,19 @@ if __name__ == '__main__':
     logging_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(stream=args.logfile, level=logging_level)
 
+    if args.band is None and args.wvl is None:
+        args.band = 'sw01'
+    if args.band and args.wvl:
+        parser.error('--band and --wvl are mutually exclusive')
+
+    if args.wvl:
+        band_label = '%dNM' % int(args.wvl)
+    else:
+        band_label = args.band.upper()
+
     ds_optics, ds_bands \
-        = read_aerosol_optics(args.aerosol, args.species, args.band,
+        = read_aerosol_optics(args.aerosol, args.species,
+            args.band or band_label,
             optics_tmpdir=args.optics_tmpdir)
 
     wvls = ds_optics.coords['lambda'].values * 1.0e6
@@ -391,20 +405,28 @@ if __name__ == '__main__':
     # print(wvls)
     # 1 0.3 um, 5 0.5 um, 8 0.65 um, 12 0.9 um
 
-    # get band wavelength
-    band_idx = int(args.band[2:4])
-    logging.info('band_idx:%d' % band_idx)
-    if 'sw' in args.band:
-        wvl_max = ds_bands['LFL_SW_bands'].values[band_idx]
-        wvl_min = ds_bands['LFL_SW_bands'].values[band_idx - 1]
-    if 'lw' in args.band:
-        wvl_max = ds_bands['LFL_LW_bands'].values[band_idx]
-        wvl_min = ds_bands['LFL_LW_bands'].values[band_idx - 1]
-    wvl_band = 0.5 * (wvl_max + wvl_min)
-    logging.info('wavelength:%.2f' % wvl_band)
-
-    idx_wvl = np.argmin(np.abs(wvls - wvl_band))
-    logging.info('wavelength:%.2f\n' % wvls[idx_wvl])
+    if args.wvl:
+        # Single wavelength mode: find nearest optics wavelength
+        wvl_target = args.wvl / 1000.0  # nm to microns
+        idx_wvl = np.argmin(np.abs(wvls - wvl_target))
+        wvl_min = wvl_target
+        wvl_max = wvl_target
+        logging.info('wvl target: %.4f um, nearest optics: %.4f um',
+            wvl_target, wvls[idx_wvl])
+    else:
+        # Band mode: look up band edges
+        band_idx = int(args.band[2:4])
+        logging.info('band_idx:%d' % band_idx)
+        if 'sw' in args.band:
+            wvl_max = ds_bands['LFL_SW_bands'].values[band_idx]
+            wvl_min = ds_bands['LFL_SW_bands'].values[band_idx - 1]
+        if 'lw' in args.band:
+            wvl_max = ds_bands['LFL_LW_bands'].values[band_idx]
+            wvl_min = ds_bands['LFL_LW_bands'].values[band_idx - 1]
+        wvl_band = 0.5 * (wvl_max + wvl_min)
+        logging.info('wavelength:%.2f' % wvl_band)
+        idx_wvl = np.argmin(np.abs(wvls - wvl_band))
+        logging.info('wavelength:%.2f\n' % wvls[idx_wvl])
 
     # dates = pd.date_range(start=args.start, end=args.end, freq='D')
     dates = pd.date_range(start=args.start, end=args.end, freq='3h')
@@ -418,5 +440,5 @@ if __name__ == '__main__':
         filename_out = filename.replace('/CERES_prd/GMAO/GEOSIT',
             '/CERES/sarb/dfillmor/GEOSIT_alpha_4')
         process_file(filename, filename_out, ds_optics,
-            species_map[args.species], args.size_bin, args.band,
+            species_map[args.species], args.size_bin, band_label,
             wvl_min, wvl_max, idx_wvl)

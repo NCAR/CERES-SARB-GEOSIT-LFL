@@ -9,11 +9,16 @@ usage() {
 
 BANDS=()
 CLEAN_AER=1
+WVL=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --bands)
             IFS=',' read -ra BANDS <<< "$2"
+            shift 2
+            ;;
+        --wvl)
+            WVL="$2"
             shift 2
             ;;
         --no-clean)
@@ -63,13 +68,23 @@ if [[ ${#BANDS[@]} -eq 1 && "${BANDS[0]}" == "all" ]]; then
     for i in $(seq 1 12); do BANDS+=("lw$(printf '%02d' "$i")"); done
 fi
 
-for BAND in "${BANDS[@]}"; do
-    echo "Running external_mix.py for band $BAND"
+# Build band/wvl argument for Python script
+if [[ -n "$WVL" ]]; then
+    PY_BAND_ARGS=(--wvl "$WVL")
+    BAND_LIST=("${WVL}nm")
+else
+    PY_BAND_ARGS=()
+    BAND_LIST=("${BANDS[@]}")
+fi
+
+for BAND in "${BAND_LIST[@]}"; do
+    if [[ -z "$WVL" ]]; then
+        PY_BAND_ARGS=(--band "$BAND")
+    fi
+    echo "Running external_mix.py for $BAND"
 
     if [[ $CLEAN_AER -eq 1 ]]; then
         band_upper=$(echo "$BAND" | tr '[:lower:]' '[:upper:]')
-        pattern="${DATADIR}/${SUBDIR}/**/*AER_${band_upper}*.nc4"
-        # Expand matches using find (portable, no mapfile)
         to_delete=()
         while IFS= read -r f; do
             to_delete+=("$f")
@@ -83,7 +98,7 @@ for BAND in "${BANDS[@]}"; do
         fi
     fi
 
-    echo ">>> external_mix.py --band $BAND ${EXTRA_ARGS[*]:-}"
-    python external_mix.py --band "$BAND" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
-    echo "Finished external_mix.py for band $BAND"
+    echo ">>> external_mix.py ${PY_BAND_ARGS[*]} ${EXTRA_ARGS[*]:-}"
+    python external_mix.py "${PY_BAND_ARGS[@]}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+    echo "Finished external_mix.py for $BAND"
 done

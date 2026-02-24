@@ -143,12 +143,25 @@ if __name__ == '__main__':
     parser.add_argument('--file_pattern', type=str,
         default=os.path.join('GEOSIT', 'YYYY', 'MM',
             'GEOS.it.asm.aer_inst_3hr_glo_L288x180_v24.GEOS5294.*_band.YYYY-MM-DDTHH00.V01.nc4'))
-    parser.add_argument('--band', type=str, default='sw01')
+    parser.add_argument('--band', type=str, default=None,
+        help='LFL spectral band (e.g. sw05, lw01)')
+    parser.add_argument('--wvl', type=float, default=None,
+        help='single wavelength in nm (e.g. 550)')
     parser.add_argument('--species', nargs='*', default=ALL_SPECIES,
         help='species to include (defaults to all)')
     parser.add_argument('--ceres', action='store_true',
         help='use CERES production paths (/CERES/sarb/dfillmor/GEOSIT_alpha_4)')
     args = parser.parse_args()
+
+    if args.band is None and args.wvl is None:
+        args.band = 'sw01'
+    if args.band and args.wvl:
+        parser.error('--band and --wvl are mutually exclusive')
+
+    if args.wvl:
+        band_label = '%dNM' % int(args.wvl)
+    else:
+        band_label = args.band.upper()
 
     if args.ceres:
         args.datadir = '/CERES/sarb/dfillmor/'
@@ -168,5 +181,5 @@ if __name__ == '__main__':
         logging.info(date_str)
         filename = os.path.join(args.datadir,
             fill_date_hour_template(args.file_pattern, date_str))
-        filename = filename.replace('band', args.band.upper())
+        filename = filename.replace('band', band_label)
         process_file(filename, args.species)

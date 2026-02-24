@@ -13,11 +13,16 @@ usage() {
 BANDS=()
 OPTICS_TMPDIR=""
 AUTO_TMPDIR=0
+WVL=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --bands)
             IFS=',' read -ra BANDS <<< "$2"
+            shift 2
+            ;;
+        --wvl)
+            WVL="$2"
             shift 2
             ;;
         --optics_tmpdir)
@@ -78,34 +83,47 @@ SIZE_BINS_5=(001 002 003 004 005)
 SIZE_BINS_3=(001 002 003)
 SIZE_BINS_2=(001 002)
 
-for BAND in "${BANDS[@]}"; do
-    echo "Running species_optics.py for band $BAND"
+# Build band/wvl argument for Python script
+if [[ -n "$WVL" ]]; then
+    BAND_ARGS=(--wvl "$WVL")
+    BAND_LIST=("${WVL}nm")
+else
+    BAND_ARGS=()
+    BAND_LIST=("${BANDS[@]}")
+fi
+
+for BAND in "${BAND_LIST[@]}"; do
+    # Set per-iteration band arg (--wvl is the same each time)
+    if [[ -z "$WVL" ]]; then
+        BAND_ARGS=(--band "$BAND")
+    fi
+    echo "Running species_optics.py for $BAND"
 
     for SP in "${SPECIES_NO_BIN[@]}"; do
-        echo ">>> species_optics.py --species $SP --band $BAND ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-        python species_optics.py --species "$SP" --band "$BAND" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+        echo ">>> species_optics.py --species $SP ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+        python species_optics.py --species "$SP" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     done
 
     for SP in "${SPECIES_5BIN[@]}"; do
         for BIN in "${SIZE_BINS_5[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN --band $BAND ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" --band "$BAND" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 
     for SP in "${SPECIES_3BIN[@]}"; do
         for BIN in "${SIZE_BINS_3[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN --band $BAND ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" --band "$BAND" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 
     for SP in "${SPECIES_2BIN[@]}"; do
         for BIN in "${SIZE_BINS_2[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN --band $BAND ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" --band "$BAND" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 
-    echo "All species processed for band $BAND"
+    echo "All species processed for $BAND"
 done
