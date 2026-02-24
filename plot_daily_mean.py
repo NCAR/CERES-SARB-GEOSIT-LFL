@@ -176,6 +176,24 @@ if __name__ == '__main__':
               f'TOTEXTTAU mean={float(da_tot.mean()):.4f}  '
               f'diff mean={float(diff.mean()):.4f}')
 
+        # Relative difference: (AER - TOTEXTTAU) / TOTEXTTAU * 100
+        rel_diff = xr.where(da_tot > 0.01, diff / da_tot * 100, np.nan)
+        rel_p99 = float(np.nanpercentile(np.abs(rel_diff.values), 99))
+        rel_vmax = max(np.ceil(rel_p99 / 5) * 5, 5)  # round up to nearest 5%
+        rel_levels = np.linspace(-rel_vmax, rel_vmax, 21)
+        rel_params = {
+            'levels': rel_levels,
+            'augment_levels': [],
+            'coastlines': True,
+        }
+        title_rel = (f'GEOSIT (AER - TOTEXTTAU) / TOTEXTTAU [%] '
+                     f'{args.band.upper()} {args.date}')
+        plotfile_rel = os.path.join(
+            args.outdir,
+            f'AER_minus_TOTEXTTAU_reldiff_{args.band.upper()}_{args.date.replace("-", "")}')
+        plot_lon_lat(plotfile_rel, title_rel, rel_params, rel_diff, symmetric=True)
+        print(f'  Wrote {plotfile_rel}.png')
+
         # Also plot TOTEXTTAU itself for reference
         levels_tot = _compute_levels(da_tot.values)
         plot_params_tot = {
