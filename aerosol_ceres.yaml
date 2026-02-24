@@ -104,7 +104,7 @@ Types:
         plot_color: darkslateblue
     DU:
         name: Dust
-        filename: /CERES/sarb/dfillmor/Optics/MERRA2/optics_DU.v14_2.nc
+        filename: /CERES/sarb/dfillmor/Optics/MERRA2/optics_DU.v15_3.nc
         density: 2.6
         hygroscopicity:
             - 0.14
