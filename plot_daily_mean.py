@@ -68,7 +68,7 @@ def load_totexttau_daily_mean(datadir, date):
     return da
 
 
-def load_daily_mean(datadir, date, species, band):
+def load_daily_mean(datadir, date, species, band, subdir='GEOSIT'):
     """Load all 8 3-hourly files for a species/band and return the daily mean dataset."""
     datasets = []
     band_upper = band.upper()
@@ -77,7 +77,7 @@ def load_daily_mean(datadir, date, species, band):
             f"GEOS.it.asm.aer_inst_3hr_glo_L288x180_v24."
             f"GEOS5294.{species}_{band_upper}.{date}{ts}.V01.nc4"
         )
-        fpath = os.path.join(datadir, 'GEOSIT', date[:4], date[5:7], fname)
+        fpath = os.path.join(datadir, subdir, date[:4], date[5:7], fname)
         if not os.path.isfile(fpath):
             logging.warning('Missing file: %s', fpath)
             continue
