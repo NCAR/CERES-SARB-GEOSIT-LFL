@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Activate sarb conda env so background jobs use the right Python regardless
+# of how this script was launched (cron, nohup, fresh ssh). Conda's activate
+# touches unset vars, so bracket with set +u/-u.
+set +u
+source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+conda activate sarb
+set -u
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
