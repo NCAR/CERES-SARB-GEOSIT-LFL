@@ -2,13 +2,14 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [extra external_mix.py args]" >&2
+    echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [--clean-species] [extra external_mix.py args]" >&2
     echo "Example: $0 --bands sw01,lw01 --start 2010-01-01T00 --end 2010-01-01T00" >&2
     exit 1
 }
 
 BANDS=()
 CLEAN_AER=1
+CLEAN_SPECIES=0
 WVL=""
 
 while [[ $# -gt 0 ]]; do
@@ -23,6 +24,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-clean)
             CLEAN_AER=0
+            shift
+            ;;
+        --clean-species)
+            CLEAN_SPECIES=1
             shift
             ;;
         --help|-h)
@@ -101,4 +106,19 @@ for BAND in "${BAND_LIST[@]}"; do
     echo ">>> external_mix.py ${PY_BAND_ARGS[*]} ${EXTRA_ARGS[*]:-}"
     python external_mix.py "${PY_BAND_ARGS[@]}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     echo "Finished external_mix.py for $BAND"
+
+    if [[ $CLEAN_SPECIES -eq 1 ]]; then
+        band_upper=$(echo "$BAND" | tr '[:lower:]' '[:upper:]')
+        species_to_delete=()
+        while IFS= read -r f; do
+            species_to_delete+=("$f")
+        done < <(find "${DATADIR}/${SUBDIR}" -type f -name "*_${band_upper}.*.nc4" ! -name "*AER_${band_upper}*" 2>/dev/null)
+        if (( ${#species_to_delete[@]} )); then
+            echo "Cleaning per-species files for $BAND:"
+            for f in "${species_to_delete[@]}"; do
+                echo "  rm $f"
+                rm -f "$f"
+            done
+        fi
+    fi
 done

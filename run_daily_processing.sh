@@ -181,6 +181,7 @@ run_day() {
         # Run external_mix for all bands
         "${SCRIPT_DIR}/run_external_mix.sh" \
             --bands all \
+            --clean-species \
             --start "$day_start" --end "$day_end" \
             "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
 
