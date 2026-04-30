@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Be a good shared-node citizen when invoked directly. No-op if already niced
 # by a parent (e.g., run_daily_processing.sh).
-renice 5 $$ >/dev/null 2>&1 || true
+renice 10 $$ >/dev/null 2>&1 || true
 
 usage() {
     echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [--clean-species] [extra external_mix.py args]" >&2

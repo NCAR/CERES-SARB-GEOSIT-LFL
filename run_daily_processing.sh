@@ -11,7 +11,7 @@ set -u
 
 # Be a good shared-node citizen: lower scheduling priority for this process
 # tree so background CPU work yields to interactive users. Children inherit.
-renice 5 $$ >/dev/null 2>&1 || true
+renice 10 $$ >/dev/null 2>&1 || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
