@@ -17,6 +17,7 @@ usage() {
     echo "  --max-jobs N    Maximum concurrent background jobs (default: unlimited)" >&2
     echo "  --dry-run       Print what would be executed without running" >&2
     echo "  --detach        Exit after launching jobs (don't wait for completion)" >&2
+    echo "  --skip-complete Skip days whose 208 AER outputs (26 bands × 8 timesteps) already exist" >&2
     echo "  --ceres         Pass --ceres flag to processing scripts" >&2
     echo "  --datadir DIR   Pass --datadir to processing scripts" >&2
     echo "" >&2
@@ -31,6 +32,7 @@ LOGDIR="./logs"
 MAX_JOBS=0
 DRY_RUN=0
 DETACH=0
+SKIP_COMPLETE=0
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -57,6 +59,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --detach)
             DETACH=1
+            shift
+            ;;
+        --skip-complete)
+            SKIP_COMPLETE=1
             shift
             ;;
         --ceres)
@@ -126,6 +132,36 @@ if (( start_sec > end_sec )); then
     echo "Error: Start date must be before or equal to end date" >&2
     exit 1
 fi
+
+# Resolve output root for completeness checks (mirrors run_external_mix.sh)
+SKIP_DATADIR="${HOME}/Data"
+SKIP_SUBDIR="GEOSIT"
+for ((i=0; i<${#EXTRA_ARGS[@]}; i++)); do
+    case "${EXTRA_ARGS[i]}" in
+        --ceres)
+            SKIP_DATADIR="/CERES/sarb/dfillmor"
+            SKIP_SUBDIR="GEOSIT_alpha_4"
+            ;;
+        --datadir)
+            if (( i + 1 < ${#EXTRA_ARGS[@]} )); then
+                SKIP_DATADIR="${EXTRA_ARGS[i+1]}"
+            fi
+            ;;
+    esac
+done
+
+# 26 bands (SW01–SW14, LW01–LW12) × 8 timesteps per day
+EXPECTED_AER_PER_DAY=208
+
+is_day_complete() {
+    local day_date="$1"
+    local outdir="${SKIP_DATADIR}/${SKIP_SUBDIR}/${day_date:0:4}/${day_date:5:2}"
+    [[ -d "$outdir" ]] || return 1
+    local n_sw n_lw
+    n_sw=$(find "$outdir" -maxdepth 1 -type f -name "*AER_SW*.${day_date}T*.V01.nc4" 2>/dev/null | wc -l)
+    n_lw=$(find "$outdir" -maxdepth 1 -type f -name "*AER_LW*.${day_date}T*.V01.nc4" 2>/dev/null | wc -l)
+    (( n_sw + n_lw >= EXPECTED_AER_PER_DAY ))
+}
 
 # Track background jobs
 declare -a PIDS=()
@@ -222,9 +258,18 @@ PIDFILE="${LOGDIR}/jobs.pid"
 # Iterate over each day
 current_sec=$start_sec
 day_count=0
+skip_count=0
 
 while (( current_sec <= end_sec )); do
     current_date=$(sec_to_date "$current_sec")
+
+    if (( SKIP_COMPLETE )) && is_day_complete "$current_date"; then
+        echo "Skipping $current_date (all $EXPECTED_AER_PER_DAY AER outputs present in ${SKIP_DATADIR}/${SKIP_SUBDIR}/${current_date:0:4}/${current_date:5:2})"
+        skip_count=$((skip_count + 1))
+        current_sec=$((current_sec + 86400))
+        continue
+    fi
+
     day_count=$((day_count + 1))
 
     if (( DRY_RUN )); then
@@ -246,12 +291,12 @@ done
 
 if (( DRY_RUN )); then
     echo ""
-    echo "Dry run complete. Would have launched $day_count jobs."
+    echo "Dry run complete. Would have launched $day_count jobs (skipped $skip_count complete days)."
     exit 0
 fi
 
 echo ""
-echo "Launched $day_count background jobs."
+echo "Launched $day_count background jobs (skipped $skip_count complete days)."
 echo "PIDs saved to: $PIDFILE"
 
 if (( DETACH )); then
