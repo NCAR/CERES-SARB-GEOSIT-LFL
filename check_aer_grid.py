@@ -7,6 +7,7 @@ map of Extinction_Column_Optical_Depth, and writes one text file per
 """
 
 import argparse
+import datetime
 import logging
 import os
 import sys
@@ -55,6 +56,11 @@ def main():
     parser.add_argument('--ceres', action='store_true',
                         help='use CERES production paths (GEOSIT_alpha_4)')
     args = parser.parse_args()
+
+    try:
+        datetime.date.fromisoformat(args.date)
+    except ValueError:
+        parser.error(f"--date must be YYYY-MM-DD, got {args.date!r}")
 
     logging.basicConfig(level=logging.INFO,
                         format='%(levelname)s %(message)s')
