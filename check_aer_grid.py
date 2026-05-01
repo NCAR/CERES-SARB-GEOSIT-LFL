@@ -276,7 +276,7 @@ def write_mean_netcdf(out_path, field, lat, lon, band, source_glob,
             'n_days_total': int(n_days_total),
             'history': (
                 'Created by check_aer_grid.py on '
-                f'{datetime.datetime.utcnow().isoformat(timespec="seconds")}Z'
+                + datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')
             ),
         },
     )
