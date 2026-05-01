@@ -97,3 +97,7 @@ cat qc/aer_check_SW01_2008-07-01.txt
 
 Bands can be listed in any combination (`sw01,sw02,lw03,...`). The script
 exits non-zero only if a requested band has zero timestep files.
+
+When stdout is a TTY the colorized map is also printed to the terminal
+(blue for clean, green/yellow for moderate, orange/red for heavy AOD).
+Use `--no-color` to suppress, or `--color` to force on when piped.

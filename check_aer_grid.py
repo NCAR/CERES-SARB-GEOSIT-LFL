@@ -131,9 +131,30 @@ LON_LABELS = ['170W', '150W', '130W', '110W', ' 90W', ' 70W', ' 50W',
 LAT_LABELS = [' 80N', ' 60N', ' 40N', ' 20N', '  0 ',
               ' 20S', ' 40S', ' 60S', ' 80S']
 
+# Discretized AOD bins used when --color is on. 5 cuts -> 6 bins, indexed
+# by sum(v >= cut for cut in LEVELS) so 0 = cleanest, 5 = extreme.
+LEVELS = [0.05, 0.10, 0.20, 0.50, 1.00]
+# ANSI 256-color foreground codes per bin (sequential blue->cyan->green
+# ->yellow->orange->red). NaN gets a distinct magenta.
+LEVEL_FG_COLORS = [27, 39, 46, 226, 208, 196]
+NAN_FG_COLOR = 165
 
-def format_report(band, date, source_glob, n_found, stats):
-    """Render the full text report for one (band, date)."""
+
+def _color_cell(text, v):
+    """Wrap a 5-char cell string with an ANSI 256-color foreground."""
+    if np.isnan(v):
+        code = NAN_FG_COLOR
+    else:
+        code = LEVEL_FG_COLORS[sum(v >= cut for cut in LEVELS)]
+    return f'\x1b[38;5;{code}m{text}\x1b[0m'
+
+
+def format_report(band, date, source_glob, n_found, stats, colorize=False):
+    """Render the full text report for one (band, date).
+
+    When colorize=True, cell values are wrapped with ANSI 256-color
+    foreground codes; the visual width is unchanged (5 chars per cell).
+    """
     lines = []
     lines.append(f'AER {band} daily-mean Extinction_Column_Optical_Depth')
     lines.append(f'date:        {date}')
@@ -159,10 +180,10 @@ def format_report(band, date, source_glob, n_found, stats):
         row_vals = []
         for j in range(18):
             v = cells[i, j]
-            if np.isnan(v):
-                row_vals.append('  NaN')
-            else:
-                row_vals.append(f'{v:5.2f}')
+            s = '  NaN' if np.isnan(v) else f'{v:5.2f}'
+            if colorize:
+                s = _color_cell(s, v)
+            row_vals.append(s)
         # 4-char lat label + 6 chars per cell (1 space + 5-char value).
         row = lat_lab + ''.join(' ' + s for s in row_vals)
         lines.append(row)
@@ -184,6 +205,14 @@ def main():
                         help='output directory (default qc)')
     parser.add_argument('--ceres', action='store_true',
                         help='use CERES production paths (GEOSIT_alpha_4)')
+    color_group = parser.add_mutually_exclusive_group()
+    color_group.add_argument('--color', dest='color', action='store_const',
+                             const=True, default=None,
+                             help='colorize stdout cell values by AOD level '
+                                  '(default: auto when stdout is a TTY)')
+    color_group.add_argument('--no-color', dest='color', action='store_const',
+                             const=False,
+                             help='disable colorized stdout output')
     args = parser.parse_args()
 
     try:
@@ -198,6 +227,8 @@ def main():
     bands = [b.strip().upper() for b in args.bands.split(',') if b.strip()]
     if not bands:
         parser.error('--bands must contain at least one band')
+
+    do_color = args.color if args.color is not None else sys.stdout.isatty()
 
     any_failed = False
     for band in bands:
@@ -218,6 +249,9 @@ def main():
             f.write(report)
         logging.info('Wrote %s (mean=%.2f, %d/8 timesteps)',
                      out_path, stats['global_mean'], n_found)
+        if do_color:
+            sys.stdout.write(format_report(
+                band, args.date, source_glob, n_found, stats, colorize=True))
 
     sys.exit(1 if any_failed else 0)
 
