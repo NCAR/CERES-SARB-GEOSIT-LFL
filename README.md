@@ -113,8 +113,8 @@ ncdump -h qc/aer_mean_SW01_2008-07-01_to_2008-07-31.nc
 ```
 
 `--date` is mutually exclusive with `--date-begin`/`--date-end`. The
-range form averages every available timestep across the window with
-equal weight.
+range form averages every available timestep file with equal weight (a
+day with missing timesteps contributes proportionally less to the mean).
 
 Bands can be listed in any combination (`sw01,sw02,lw03,...`). The script
 exits non-zero only if a requested band has zero timestep files across
