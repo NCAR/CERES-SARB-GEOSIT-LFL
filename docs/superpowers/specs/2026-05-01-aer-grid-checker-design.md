@@ -51,7 +51,8 @@ LW bands work with no special-casing (same file pattern).
 
 ## File format
 
-Roughly 95 columns wide, fixed width.
+112 columns wide for the map rows, fixed width. (4-char lat label + 18
+cells × 6 chars each: a leading space plus the 5-char `%5.2f` value.)
 
 ```
 AER {BAND} daily-mean Extinction_Column_Optical_Depth
