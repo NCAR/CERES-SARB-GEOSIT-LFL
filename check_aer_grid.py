@@ -30,6 +30,14 @@ def iter_dates(begin, end):
         yield (begin + datetime.timedelta(days=i)).isoformat()
 
 
+def window_label(date_begin, date_end):
+    """Return the YYYY-MM-DD or YYYY-MM-DD_to_YYYY-MM-DD string used
+    in output filenames and report headers."""
+    if date_begin == date_end:
+        return date_begin.isoformat()
+    return f'{date_begin.isoformat()}_to_{date_end.isoformat()}'
+
+
 def build_paths(datadir, ceres, date, band):
     """Return the 8 expected timestep file paths for one (band, date).
 
@@ -375,8 +383,9 @@ def main():
         first_paths = build_paths(args.datadir, args.ceres, dates[0], band)
         source_glob = first_paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
         report = format_report(band, args.date, source_glob, n_found, stats)
+        label = window_label(date_begin, date_end)
         out_path = os.path.join(
-            args.outdir, f'aer_check_{band}_{args.date}.txt')
+            args.outdir, f'aer_check_{band}_{label}.txt')
         with open(out_path, 'w') as f:
             f.write(report)
         logging.info('Wrote %s (mean=%.2f, %d/8 timesteps)',
@@ -386,7 +395,7 @@ def main():
                 band, args.date, source_glob, n_found, stats, colorize=True))
 
         nc_path = os.path.join(
-            args.outdir, f'aer_mean_{band}_{args.date}.nc')
+            args.outdir, f'aer_mean_{band}_{label}.nc')
         write_mean_netcdf(
             nc_path, field, lat, lon, band, source_glob,
             n_found, n_total, n_days_data, n_days_total,
