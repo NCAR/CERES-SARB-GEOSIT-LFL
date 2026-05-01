@@ -208,6 +208,12 @@ run_day() {
     local optics_tmpdir
     optics_tmpdir=$(mktemp -d -t "optics_${day_date}.XXXXXX")
 
+    # Process bands one at a time so per-species files get cleaned per band
+    # rather than accumulating across all 26 bands before external_mix runs.
+    local bands=()
+    for i in $(seq 1 14); do bands+=("sw$(printf '%02d' "$i")"); done
+    for i in $(seq 1 12); do bands+=("lw$(printf '%02d' "$i")"); done
+
     {
         echo "========================================"
         echo "Processing date: $day_date"
@@ -216,24 +222,24 @@ run_day() {
         echo "========================================"
         echo ""
 
-        # Run species_optics for all bands
-        echo "=== Running species_optics ==="
-        "${SCRIPT_DIR}/run_species_optics.sh" \
-            --bands all \
-            --optics_tmpdir "$optics_tmpdir" \
-            --start "$day_start" --end "$day_end" \
-            "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+        for band in "${bands[@]}"; do
+            echo "=== $band: species_optics ==="
+            "${SCRIPT_DIR}/run_species_optics.sh" \
+                --bands "$band" \
+                --optics_tmpdir "$optics_tmpdir" \
+                --start "$day_start" --end "$day_end" \
+                "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
 
-        echo ""
-        echo "=== Running external_mix ==="
-        # Run external_mix for all bands
-        "${SCRIPT_DIR}/run_external_mix.sh" \
-            --bands all \
-            --clean-species \
-            --start "$day_start" --end "$day_end" \
-            "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ""
+            echo "=== $band: external_mix ==="
+            "${SCRIPT_DIR}/run_external_mix.sh" \
+                --bands "$band" \
+                --clean-species \
+                --start "$day_start" --end "$day_end" \
+                "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ""
+        done
 
-        echo ""
         echo "========================================"
         echo "Completed date: $day_date"
         echo "Finished at: $(date)"
