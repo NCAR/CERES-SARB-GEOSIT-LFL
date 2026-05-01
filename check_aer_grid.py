@@ -125,6 +125,51 @@ def aggregate_cells(field, lat):
     }
 
 
+LON_LABELS = ['170W', '150W', '130W', '110W', ' 90W', ' 70W', ' 50W',
+              ' 30W', ' 10W', ' 10E', ' 30E', ' 50E', ' 70E', ' 90E',
+              '110E', '130E', '150E', '170E']
+LAT_LABELS = [' 80N', ' 60N', ' 40N', ' 20N', '  0 ',
+              ' 20S', ' 40S', ' 60S', ' 80S']
+
+
+def format_report(band, date, source_glob, n_found, stats):
+    """Render the full text report for one (band, date)."""
+    lines = []
+    lines.append(f'AER {band} daily-mean Extinction_Column_Optical_Depth')
+    lines.append(f'date:        {date}')
+    lines.append(f'source:      {source_glob}')
+    lines.append(f'timesteps:   {n_found}/8')
+    lines.append(f'global mean: {stats["global_mean"]:.2f}'
+                 f'  (area-weighted, cos lat)')
+    lines.append(f'global min:  {stats["global_min"]:.2f}')
+    lines.append(f'global max:  {stats["global_max"]:.2f}')
+    nan_cells = int(np.isnan(stats['cells']).sum())
+    lines.append(f'NaN cells:   {nan_cells}')
+    lines.append(f'NaN points:  {stats["nan_points"]} / '
+                 f'{stats["total_points"]}')
+    lines.append('')
+
+    # Header row: 4-char indent (under the lat label), then each lon
+    # label is right-padded to a 6-char block ('  170W', '   90W', ...).
+    header = '    ' + ''.join(f'  {lab}' for lab in LON_LABELS)
+    lines.append(header)
+
+    cells = stats['cells']
+    for i, lat_lab in enumerate(LAT_LABELS):
+        row_vals = []
+        for j in range(18):
+            v = cells[i, j]
+            if np.isnan(v):
+                row_vals.append('  NaN')
+            else:
+                row_vals.append(f'{v:5.2f}')
+        # 4-char lat label + 6 chars per cell (1 space + 5-char value).
+        row = lat_lab + ''.join(' ' + s for s in row_vals)
+        lines.append(row)
+
+    return '\n'.join(lines) + '\n'
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Per-band AER aggregate sanity checker (text 9x18 map)')
