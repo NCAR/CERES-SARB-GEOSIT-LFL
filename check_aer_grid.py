@@ -232,6 +232,57 @@ def format_report(band, date, source_glob, n_found, stats, colorize=False):
     return '\n'.join(lines) + '\n'
 
 
+def write_mean_netcdf(out_path, field, lat, lon, band, source_glob,
+                      n_used, n_expected, n_days_data, n_days_total,
+                      date_begin, date_end):
+    """Write the time-mean Extinction_Column_Optical_Depth field.
+
+    out_path:    full path to the .nc file to create.
+    field:       (180, 288) float64 array (already a time-mean).
+    lat, lon:    1-D coord arrays from the source files.
+    band:        uppercase band string, e.g. 'SW01'.
+    source_glob: pattern string shown in the text report.
+    n_used,
+    n_expected:  timestep counts to record as global attrs.
+    n_days_data,
+    n_days_total: day counts to record as global attrs.
+    date_begin,
+    date_end:    datetime.date instances; written as ISO strings.
+    """
+    ds = xr.Dataset(
+        data_vars={
+            'Extinction_Column_Optical_Depth': (
+                ('lat', 'lon'),
+                field,
+                {
+                    'cell_methods': 'time: mean',
+                    'long_name':
+                        'Extinction Column Optical Depth (time mean)',
+                },
+            ),
+        },
+        coords={
+            'lat': ('lat', lat, {'units': 'degrees_north'}),
+            'lon': ('lon', lon, {'units': 'degrees_east'}),
+        },
+        attrs={
+            'band': band,
+            'source': source_glob,
+            'time_coverage_start': f'{date_begin.isoformat()}T00:00:00Z',
+            'time_coverage_end':   f'{date_end.isoformat()}T21:00:00Z',
+            'n_timesteps_used': int(n_used),
+            'n_timesteps_expected': int(n_expected),
+            'n_days_with_data': int(n_days_data),
+            'n_days_total': int(n_days_total),
+            'history': (
+                'Created by check_aer_grid.py on '
+                f'{datetime.datetime.utcnow().isoformat(timespec="seconds")}Z'
+            ),
+        },
+    )
+    ds.to_netcdf(out_path, format='NETCDF4_CLASSIC')
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Per-band AER aggregate sanity checker (text 9x18 map)')
@@ -333,6 +384,14 @@ def main():
         if do_color:
             sys.stdout.write(format_report(
                 band, args.date, source_glob, n_found, stats, colorize=True))
+
+        nc_path = os.path.join(
+            args.outdir, f'aer_mean_{band}_{args.date}.nc')
+        write_mean_netcdf(
+            nc_path, field, lat, lon, band, source_glob,
+            n_found, n_total, n_days_data, n_days_total,
+            date_begin, date_end)
+        logging.info('Wrote %s', nc_path)
 
     sys.exit(1 if any_failed else 0)
 
