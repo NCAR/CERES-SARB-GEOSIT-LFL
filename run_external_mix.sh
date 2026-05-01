@@ -6,7 +6,7 @@ set -euo pipefail
 renice 10 $$ >/dev/null 2>&1 || true
 
 usage() {
-    echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [--clean-species] [extra external_mix.py args]" >&2
+    echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [--clean-species] [--day-date YYYY-MM-DD] [extra external_mix.py args]" >&2
     echo "Example: $0 --bands sw01,lw01 --start 2010-01-01T00 --end 2010-01-01T00" >&2
     exit 1
 }
@@ -15,6 +15,7 @@ BANDS=()
 CLEAN_AER=1
 CLEAN_SPECIES=0
 WVL=""
+DAY_DATE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,6 +34,10 @@ while [[ $# -gt 0 ]]; do
         --clean-species)
             CLEAN_SPECIES=1
             shift
+            ;;
+        --day-date)
+            DAY_DATE="$2"
+            shift 2
             ;;
         --help|-h)
             usage
@@ -94,10 +99,17 @@ for BAND in "${BAND_LIST[@]}"; do
 
     if [[ $CLEAN_AER -eq 1 ]]; then
         band_upper=$(echo "$BAND" | tr '[:lower:]' '[:upper:]')
+        # Scope cleanup to this day when --day-date is given so parallel days
+        # writing to the same output dir don't clobber each other's files.
+        if [[ -n "$DAY_DATE" ]]; then
+            aer_pattern="*AER_${band_upper}.${DAY_DATE}T*.nc4"
+        else
+            aer_pattern="*AER_${band_upper}*.nc4"
+        fi
         to_delete=()
         while IFS= read -r f; do
             to_delete+=("$f")
-        done < <(find "${DATADIR}/${SUBDIR}" -type f -name "*AER_${band_upper}*.nc4" 2>/dev/null)
+        done < <(find "${DATADIR}/${SUBDIR}" -type f -name "$aer_pattern" 2>/dev/null)
         if (( ${#to_delete[@]} )); then
             echo "Cleaning preexisting AER files for $BAND:"
             for f in "${to_delete[@]}"; do
@@ -113,10 +125,15 @@ for BAND in "${BAND_LIST[@]}"; do
 
     if [[ $CLEAN_SPECIES -eq 1 ]]; then
         band_upper=$(echo "$BAND" | tr '[:lower:]' '[:upper:]')
+        if [[ -n "$DAY_DATE" ]]; then
+            species_pattern="*_${band_upper}.${DAY_DATE}T*.nc4"
+        else
+            species_pattern="*_${band_upper}.*.nc4"
+        fi
         species_to_delete=()
         while IFS= read -r f; do
             species_to_delete+=("$f")
-        done < <(find "${DATADIR}/${SUBDIR}" -type f -name "*_${band_upper}.*.nc4" ! -name "*AER_${band_upper}*" 2>/dev/null)
+        done < <(find "${DATADIR}/${SUBDIR}" -type f -name "$species_pattern" ! -name "*AER_${band_upper}*" 2>/dev/null)
         if (( ${#species_to_delete[@]} )); then
             echo "Cleaning per-species files for $BAND:"
             for f in "${species_to_delete[@]}"; do

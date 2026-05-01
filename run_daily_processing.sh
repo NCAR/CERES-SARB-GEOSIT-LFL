@@ -235,6 +235,7 @@ run_day() {
             "${SCRIPT_DIR}/run_external_mix.sh" \
                 --bands "$band" \
                 --clean-species \
+                --day-date "$day_date" \
                 --start "$day_start" --end "$day_end" \
                 "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
             echo ""
