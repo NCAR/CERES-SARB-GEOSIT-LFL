@@ -72,6 +72,59 @@ def load_daily_mean(paths):
     return daily, lat, lon, len(fields)
 
 
+def aggregate_cells(field, lat):
+    """Reduce a (180, 288) field to a 9x18 area-weighted cell-mean grid.
+
+    Returns dict with:
+        cells:      (9, 18) array, north-to-south rows, west-to-east cols.
+                    NaN if a cell has zero finite, positive-weight points.
+        global_mean, global_min, global_max: scalars (nanstats over field).
+        nan_points: count of NaN points in the input field.
+        total_points: total points in the input field (180*288).
+    """
+    if field.shape != (180, 288):
+        raise ValueError(f'expected (180, 288), got {field.shape}')
+    if lat.shape != (180,):
+        raise ValueError(f'expected lat shape (180,), got {lat.shape}')
+
+    # Orient north-to-south. The output map's top row is 80N.
+    if lat[0] < lat[-1]:
+        field = field[::-1, :]
+        lat = lat[::-1]
+
+    weights = np.cos(np.deg2rad(lat))                  # (180,)
+    w2d = np.broadcast_to(weights[:, None], field.shape)  # (180, 288)
+
+    finite = np.isfinite(field)
+    fld = np.where(finite, field, 0.0)
+    wts = np.where(finite, w2d, 0.0)
+
+    # Reshape (180, 288) -> (9, 20, 18, 16) so axes (1, 3) are within-cell.
+    f4 = fld.reshape(9, 20, 18, 16)
+    w4 = wts.reshape(9, 20, 18, 16)
+
+    num = (f4 * w4).sum(axis=(1, 3))   # (9, 18)
+    den = w4.sum(axis=(1, 3))          # (9, 18) -- sum of weights
+    cells = np.where(den > 0, num / den, np.nan)
+
+    global_num = (fld * wts).sum()
+    global_den = wts.sum()
+    global_mean = global_num / global_den if global_den > 0 else float('nan')
+    global_min = float(np.nanmin(field)) if finite.any() else float('nan')
+    global_max = float(np.nanmax(field)) if finite.any() else float('nan')
+    nan_points = int((~finite).sum())
+    total_points = int(field.size)
+
+    return {
+        'cells': cells,
+        'global_mean': float(global_mean),
+        'global_min': global_min,
+        'global_max': global_max,
+        'nan_points': nan_points,
+        'total_points': total_points,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Per-band AER aggregate sanity checker (text 9x18 map)')
