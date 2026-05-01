@@ -12,6 +12,9 @@ import logging
 import os
 import sys
 
+import numpy as np
+import xarray as xr
+
 
 TIMESTEPS = ['T0000', 'T0300', 'T0600', 'T0900',
              'T1200', 'T1500', 'T1800', 'T2100']
@@ -39,6 +42,35 @@ def build_paths(datadir, ceres, date, band):
                      fname_tmpl.format(band=band, date=date, ts=ts))
         for ts in TIMESTEPS
     ]
+
+
+def load_daily_mean(paths):
+    """Load AER aggregate timestep files and average over time.
+
+    Returns (field, lat, lon, n_found) where field is shape (180, 288)
+    and lat/lon are 1-D arrays read from the file. Missing timesteps
+    are skipped with a WARNING. NaNs in input propagate via nanmean.
+    """
+    fields = []
+    lat = lon = None
+    for p in paths:
+        if not os.path.exists(p):
+            logging.warning('Missing timestep: %s', p)
+            continue
+        ds = xr.open_dataset(p)
+        arr = ds['Extinction_Column_Optical_Depth'].values
+        # File stores either (time, lat, lon) with time=1 or (lat, lon).
+        if arr.ndim == 3:
+            arr = arr[0]
+        fields.append(arr.astype(np.float64))
+        if lat is None:
+            lat = ds['lat'].values.astype(np.float64)
+            lon = ds['lon'].values.astype(np.float64)
+        ds.close()
+    if not fields:
+        return None, None, None, 0
+    daily = np.nanmean(np.stack(fields), axis=0)
+    return daily, lat, lon, len(fields)
 
 
 def main():
@@ -73,8 +105,15 @@ def main():
     any_failed = False
     for band in bands:
         paths = build_paths(args.datadir, args.ceres, args.date, band)
-        for p in paths:
-            print(p)
+        field, lat, lon, n_found = load_daily_mean(paths)
+        if n_found == 0:
+            logging.error('No timestep files found for %s %s', band, args.date)
+            any_failed = True
+            continue
+        logging.info('%s: loaded %d/8 timesteps; field shape %s; '
+                     'min=%.4f max=%.4f',
+                     band, n_found, field.shape,
+                     float(np.nanmin(field)), float(np.nanmax(field)))
 
     sys.exit(1 if any_failed else 0)
 
