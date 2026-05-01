@@ -198,17 +198,36 @@ def _color_cell(text, v):
     return f'\x1b[38;5;{code}m{text}\x1b[0m'
 
 
-def format_report(band, date, source_glob, n_found, stats, colorize=False):
-    """Render the full text report for one (band, date).
+def format_report(band, date_begin, date_end, source_glob, n_found,
+                  n_total, n_days_data, n_days_total, stats,
+                  colorize=False):
+    """Render the full text report for one (band, window).
+
+    date_begin, date_end: datetime.date instances. When equal, the
+    header uses the single-day format (byte-identical to the pre-range
+    version of this script).
 
     When colorize=True, cell values are wrapped with ANSI 256-color
     foreground codes; the visual width is unchanged (5 chars per cell).
     """
+    is_single_day = (date_begin == date_end)
     lines = []
-    lines.append(f'AER {band} daily-mean Extinction_Column_Optical_Depth')
-    lines.append(f'date:        {date}')
-    lines.append(f'source:      {source_glob}')
-    lines.append(f'timesteps:   {n_found}/8')
+    if is_single_day:
+        lines.append(
+            f'AER {band} daily-mean Extinction_Column_Optical_Depth')
+        lines.append(f'date:        {date_begin.isoformat()}')
+        lines.append(f'source:      {source_glob}')
+        lines.append(f'timesteps:   {n_found}/{n_total}')
+    else:
+        n_days = (date_end - date_begin).days + 1
+        lines.append(
+            f'AER {band} window-mean Extinction_Column_Optical_Depth')
+        lines.append(
+            f'range:       {date_begin.isoformat()} to '
+            f'{date_end.isoformat()}  ({n_days} days)')
+        lines.append(f'source:      {source_glob}')
+        lines.append(f'timesteps:   {n_found}/{n_total}')
+        lines.append(f'days:        {n_days_data}/{n_days_total}')
     lines.append(f'global mean: {stats["global_mean"]:.2f}'
                  f'  (area-weighted, cos lat)')
     lines.append(f'global min:  {stats["global_min"]:.2f}')
@@ -382,17 +401,24 @@ def main():
         # rather than every individual path.
         first_paths = build_paths(args.datadir, args.ceres, dates[0], band)
         source_glob = first_paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
-        report = format_report(band, args.date, source_glob, n_found, stats)
+        if not is_single_day:
+            # Replace the 10-char YYYY-MM-DD date in the embedded path with '?'.
+            source_glob = source_glob.replace(dates[0], '??????????', 1)
+        report = format_report(
+            band, date_begin, date_end, source_glob,
+            n_found, n_total, n_days_data, n_days_total, stats)
         label = window_label(date_begin, date_end)
         out_path = os.path.join(
             args.outdir, f'aer_check_{band}_{label}.txt')
         with open(out_path, 'w') as f:
             f.write(report)
-        logging.info('Wrote %s (mean=%.2f, %d/8 timesteps)',
-                     out_path, stats['global_mean'], n_found)
+        logging.info('Wrote %s (mean=%.2f, %d/%d timesteps)',
+                     out_path, stats['global_mean'], n_found, n_total)
         if do_color:
             sys.stdout.write(format_report(
-                band, args.date, source_glob, n_found, stats, colorize=True))
+                band, date_begin, date_end, source_glob,
+                n_found, n_total, n_days_data, n_days_total, stats,
+                colorize=True))
 
         nc_path = os.path.join(
             args.outdir, f'aer_mean_{band}_{label}.nc')
