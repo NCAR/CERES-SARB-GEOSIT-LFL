@@ -87,16 +87,38 @@ Force kill (SIGKILL):
 ### Quick QC (per-band regional means)
 
 For a fast text-only sanity check of AER output on bands that have
-finished, use `check_aer_grid.py`. It writes one text file per (band, date)
-with global stats and a 9×18 area-weighted regional-mean map of column AOD.
+finished, use `check_aer_grid.py`. It writes two files per (band, window)
+under `--outdir`:
 
+- `aer_check_{BAND}_{window}.txt` — global stats and a 9×18
+  area-weighted regional-mean map of column AOD.
+- `aer_mean_{BAND}_{window}.nc` — the full-resolution 180×288
+  time-mean field of `Extinction_Column_Optical_Depth`.
+
+`{window}` is `YYYY-MM-DD` for a single day or
+`YYYY-MM-DD_to_YYYY-MM-DD` for a range.
+
+Single-day:
 ```bash
 ./check_aer_grid.py --date 2008-07-01 --bands sw01,sw02 --ceres
 cat qc/aer_check_SW01_2008-07-01.txt
 ```
 
+Date range (inclusive on both ends):
+```bash
+./check_aer_grid.py --date-begin 2008-07-01 --date-end 2008-07-31 \
+    --bands sw01 --ceres
+cat qc/aer_check_SW01_2008-07-01_to_2008-07-31.txt
+ncdump -h qc/aer_mean_SW01_2008-07-01_to_2008-07-31.nc
+```
+
+`--date` is mutually exclusive with `--date-begin`/`--date-end`. The
+range form averages every available timestep across the window with
+equal weight.
+
 Bands can be listed in any combination (`sw01,sw02,lw03,...`). The script
-exits non-zero only if a requested band has zero timestep files.
+exits non-zero only if a requested band has zero timestep files across
+the entire window.
 
 When stdout is a TTY the colorized map is also printed to the terminal
 (blue for clean, green/yellow for moderate, orange/red for heavy AOD).
