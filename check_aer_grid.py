@@ -219,12 +219,11 @@ def format_report(band, date_begin, date_end, source_glob, n_found,
         lines.append(f'source:      {source_glob}')
         lines.append(f'timesteps:   {n_found}/{n_total}')
     else:
-        n_days = (date_end - date_begin).days + 1
         lines.append(
             f'AER {band} window-mean Extinction_Column_Optical_Depth')
         lines.append(
             f'range:       {date_begin.isoformat()} to '
-            f'{date_end.isoformat()}  ({n_days} days)')
+            f'{date_end.isoformat()}  ({n_days_total} days)')
         lines.append(f'source:      {source_glob}')
         lines.append(f'timesteps:   {n_found}/{n_total}')
         lines.append(f'days:        {n_days_data}/{n_days_total}')
