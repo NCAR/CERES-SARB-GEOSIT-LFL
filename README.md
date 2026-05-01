@@ -83,3 +83,17 @@ Force kill (SIGKILL):
 ```bash
 ./kill_daily_jobs.sh --force
 ```
+
+### Quick QC (per-band regional means)
+
+For a fast text-only sanity check of AER output on bands that have
+finished, use `check_aer_grid.py`. It writes one text file per (band, date)
+with global stats and a 9×18 area-weighted regional-mean map of column AOD.
+
+```bash
+./check_aer_grid.py --date 2008-07-01 --bands sw01,sw02 --ceres
+cat qc/aer_check_SW01_2008-07-01.txt
+```
+
+Bands can be listed in any combination (`sw01,sw02,lw03,...`). The script
+exits non-zero only if a requested band has zero timestep files.
