@@ -57,16 +57,15 @@ def load_daily_mean(paths):
         if not os.path.exists(p):
             logging.warning('Missing timestep: %s', p)
             continue
-        ds = xr.open_dataset(p)
-        arr = ds['Extinction_Column_Optical_Depth'].values
-        # File stores either (time, lat, lon) with time=1 or (lat, lon).
-        if arr.ndim == 3:
-            arr = arr[0]
-        fields.append(arr.astype(np.float64))
-        if lat is None:
-            lat = ds['lat'].values.astype(np.float64)
-            lon = ds['lon'].values.astype(np.float64)
-        ds.close()
+        with xr.open_dataset(p) as ds:
+            arr = ds['Extinction_Column_Optical_Depth'].values
+            # File stores either (time, lat, lon) with time=1 or (lat, lon).
+            if arr.ndim == 3:
+                arr = arr[0]
+            fields.append(arr.astype(np.float64))
+            if lat is None:
+                lat = ds['lat'].values.astype(np.float64)
+                lon = ds['lon'].values.astype(np.float64)
     if not fields:
         return None, None, None, 0
     daily = np.nanmean(np.stack(fields), axis=0)
