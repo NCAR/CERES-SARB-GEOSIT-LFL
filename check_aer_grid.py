@@ -54,32 +54,61 @@ def build_paths(datadir, ceres, date, band):
     ]
 
 
-def load_daily_mean(paths):
-    """Load AER aggregate timestep files and average over time.
+def load_window_mean(datadir, ceres, dates, band):
+    """Average Extinction_Column_Optical_Depth over all available
+    timesteps in the window.
 
-    Returns (field, lat, lon, n_found) where field is shape (180, 288)
-    and lat/lon are 1-D arrays read from the file. Missing timesteps
-    are skipped with a WARNING. NaNs in input propagate via nanmean.
+    dates: list of 'YYYY-MM-DD' strings, in any order.
+    band:  uppercase, e.g. 'SW01'.
+
+    Returns:
+        field:               (180, 288) float64, np.nanmean over the
+                             full stack of available timestep arrays,
+                             or None if zero timesteps were found.
+        lat, lon:            1-D arrays from the first file read, or
+                             None if zero timesteps were found.
+        n_timesteps_found:   int, number of timestep files actually
+                             loaded across all dates.
+        n_timesteps_total:   int, 8 * len(dates).
+        n_days_with_data:    int, number of dates that contributed at
+                             least one timestep.
+        n_days_total:        int, len(dates).
     """
     fields = []
     lat = lon = None
-    for p in paths:
-        if not os.path.exists(p):
-            logging.warning('Missing timestep: %s', p)
-            continue
-        with xr.open_dataset(p) as ds:
-            arr = ds['Extinction_Column_Optical_Depth'].values
-            # File stores either (time, lat, lon) with time=1 or (lat, lon).
-            if arr.ndim == 3:
-                arr = arr[0]
-            fields.append(arr.astype(np.float64))
-            if lat is None:
-                lat = ds['lat'].values.astype(np.float64)
-                lon = ds['lon'].values.astype(np.float64)
+    n_days_with_data = 0
+    for date in dates:
+        paths = build_paths(datadir, ceres, date, band)
+        day_count = 0
+        for p in paths:
+            if not os.path.exists(p):
+                logging.warning('Missing timestep: %s', p)
+                continue
+            with xr.open_dataset(p) as ds:
+                arr = ds['Extinction_Column_Optical_Depth'].values
+                # File stores either (time, lat, lon) with time=1 or (lat, lon).
+                if arr.ndim == 3:
+                    arr = arr[0]
+                if lat is None:
+                    lat = ds['lat'].values.astype(np.float64)
+                    lon = ds['lon'].values.astype(np.float64)
+                else:
+                    cur_lat = ds['lat'].values
+                    if cur_lat.shape != lat.shape:
+                        logging.error(
+                            'lat shape mismatch in %s: %s vs %s; '
+                            'aborting band',
+                            p, cur_lat.shape, lat.shape)
+                        return None, None, None, 0, 8 * len(dates), 0, len(dates)
+                fields.append(arr.astype(np.float64))
+                day_count += 1
+        if day_count > 0:
+            n_days_with_data += 1
+    n_total = 8 * len(dates)
     if not fields:
-        return None, None, None, 0
-    daily = np.nanmean(np.stack(fields), axis=0)
-    return daily, lat, lon, len(fields)
+        return None, None, None, 0, n_total, 0, len(dates)
+    field = np.nanmean(np.stack(fields), axis=0)
+    return field, lat, lon, len(fields), n_total, n_days_with_data, len(dates)
 
 
 def aggregate_cells(field, lat):
@@ -240,18 +269,20 @@ def main():
 
     do_color = args.color if args.color is not None else sys.stdout.isatty()
 
+    dates = [args.date]                         # placeholder; Task 3 derives this from the new CLI flags
     any_failed = False
     for band in bands:
-        paths = build_paths(args.datadir, args.ceres, args.date, band)
-        field, lat, lon, n_found = load_daily_mean(paths)
+        field, lat, lon, n_found, n_total, n_days_data, n_days_total = (
+            load_window_mean(args.datadir, args.ceres, dates, band))
         if n_found == 0:
-            logging.error('No timestep files found for %s %s', band, args.date)
+            logging.error('No timestep files found for %s in window', band)
             any_failed = True
             continue
         stats = aggregate_cells(field, lat)
         # Use a glob-style source string so the report shows the pattern
-        # rather than 8 individual paths.
-        source_glob = paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
+        # rather than every individual path.
+        first_paths = build_paths(args.datadir, args.ceres, dates[0], band)
+        source_glob = first_paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
         report = format_report(band, args.date, source_glob, n_found, stats)
         out_path = os.path.join(
             args.outdir, f'aer_check_{band}_{args.date}.txt')
