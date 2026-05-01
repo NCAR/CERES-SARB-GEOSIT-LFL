@@ -448,11 +448,13 @@ python -c "
 import numpy as np
 import sys; sys.path.insert(0, '.')
 from check_aer_grid import aggregate_cells
-lat = np.linspace(-89.5, 89.5, 180)
+lat = np.linspace(-89.5, 89.5, 180)        # ascending, S to N
 field = np.full((180, 288), 0.5)
-field[:20, :16] = np.nan   # top-left cell entirely NaN
+# Put NaN block in the northern hemisphere (last 20 rows of ascending input).
+# After aggregate_cells flips N-to-S, this lands in cell (0, 0) of the output.
+field[-20:, :16] = np.nan
 out = aggregate_cells(field, lat)
-print('nan cell:', out['cells'][0, 0])  # expect nan
+print('nan cell:', out['cells'][0, 0])  # expect nan (top-left, north)
 print('next cell:', out['cells'][0, 1]) # expect 0.5
 print('nan_points:', out['nan_points'], '/', out['total_points'])
 assert np.isnan(out['cells'][0, 0])
