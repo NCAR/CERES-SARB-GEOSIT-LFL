@@ -207,10 +207,17 @@ def main():
             logging.error('No timestep files found for %s %s', band, args.date)
             any_failed = True
             continue
-        logging.info('%s: loaded %d/8 timesteps; field shape %s; '
-                     'min=%.4f max=%.4f',
-                     band, n_found, field.shape,
-                     float(np.nanmin(field)), float(np.nanmax(field)))
+        stats = aggregate_cells(field, lat)
+        # Use a glob-style source string so the report shows the pattern
+        # rather than 8 individual paths.
+        source_glob = paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
+        report = format_report(band, args.date, source_glob, n_found, stats)
+        out_path = os.path.join(
+            args.outdir, f'aer_check_{band}_{args.date}.txt')
+        with open(out_path, 'w') as f:
+            f.write(report)
+        logging.info('Wrote %s (mean=%.2f, %d/8 timesteps)',
+                     out_path, stats['global_mean'], n_found)
 
     sys.exit(1 if any_failed else 0)
 
