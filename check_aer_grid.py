@@ -64,9 +64,11 @@ def load_window_mean(datadir, ceres, dates, band):
     Returns:
         field:               (180, 288) float64, np.nanmean over the
                              full stack of available timestep arrays,
-                             or None if zero timesteps were found.
+                             or None if zero timesteps were found or a
+                             lat-shape mismatch aborted the band.
         lat, lon:            1-D arrays from the first file read, or
-                             None if zero timesteps were found.
+                             None if zero timesteps were found or a
+                             lat-shape mismatch aborted the band.
         n_timesteps_found:   int, number of timestep files actually
                              loaded across all dates.
         n_timesteps_total:   int, 8 * len(dates).
@@ -275,7 +277,7 @@ def main():
         field, lat, lon, n_found, n_total, n_days_data, n_days_total = (
             load_window_mean(args.datadir, args.ceres, dates, band))
         if n_found == 0:
-            logging.error('No timestep files found for %s in window', band)
+            logging.error('Skipping band %s: no usable data in window', band)
             any_failed = True
             continue
         stats = aggregate_cells(field, lat)
