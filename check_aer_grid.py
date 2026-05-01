@@ -235,8 +235,17 @@ def format_report(band, date, source_glob, n_found, stats, colorize=False):
 def main():
     parser = argparse.ArgumentParser(
         description='Per-band AER aggregate sanity checker (text 9x18 map)')
-    parser.add_argument('--date', type=str, required=True,
-                        help='date YYYY-MM-DD')
+    parser.add_argument('--date', type=str, default=None,
+                        help='single date YYYY-MM-DD '
+                             '(mutually exclusive with --date-begin/--date-end)')
+    parser.add_argument('--date-begin', dest='date_begin', type=str,
+                        default=None,
+                        help='inclusive start date YYYY-MM-DD '
+                             '(use with --date-end for a range)')
+    parser.add_argument('--date-end', dest='date_end', type=str,
+                        default=None,
+                        help='inclusive end date YYYY-MM-DD '
+                             '(use with --date-begin for a range)')
     parser.add_argument('--bands', type=str, required=True,
                         help='comma-separated band list, e.g. sw01,sw02,lw03')
     parser.add_argument('--datadir', type=str,
@@ -256,10 +265,40 @@ def main():
                              help='disable colorized stdout output')
     args = parser.parse_args()
 
-    try:
-        datetime.date.fromisoformat(args.date)
-    except ValueError:
-        parser.error(f"--date must be YYYY-MM-DD, got {args.date!r}")
+    using_single = args.date is not None
+    using_range = (args.date_begin is not None) or (args.date_end is not None)
+    if using_single and using_range:
+        parser.error(
+            '--date is mutually exclusive with --date-begin/--date-end')
+    if not using_single and not using_range:
+        parser.error('one of --date or --date-begin/--date-end is required')
+    if using_range and (args.date_begin is None or args.date_end is None):
+        parser.error('--date-begin and --date-end must be given together')
+
+    if using_single:
+        try:
+            d = datetime.date.fromisoformat(args.date)
+        except ValueError:
+            parser.error(f"--date must be YYYY-MM-DD, got {args.date!r}")
+        date_begin = date_end = d
+    else:
+        try:
+            date_begin = datetime.date.fromisoformat(args.date_begin)
+        except ValueError:
+            parser.error(
+                f"--date-begin must be YYYY-MM-DD, got {args.date_begin!r}")
+        try:
+            date_end = datetime.date.fromisoformat(args.date_end)
+        except ValueError:
+            parser.error(
+                f"--date-end must be YYYY-MM-DD, got {args.date_end!r}")
+        if date_end < date_begin:
+            parser.error(
+                f"--date-end ({date_end}) must be >= --date-begin "
+                f"({date_begin})")
+
+    dates = list(iter_dates(date_begin, date_end))
+    is_single_day = (date_begin == date_end)
 
     logging.basicConfig(level=logging.INFO,
                         format='%(levelname)s %(message)s')
@@ -271,7 +310,6 @@ def main():
 
     do_color = args.color if args.color is not None else sys.stdout.isatty()
 
-    dates = [args.date]                         # placeholder; Task 3 derives this from the new CLI flags
     any_failed = False
     for band in bands:
         field, lat, lon, n_found, n_total, n_days_data, n_days_total = (
