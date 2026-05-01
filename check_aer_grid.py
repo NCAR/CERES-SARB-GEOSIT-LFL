@@ -20,6 +20,16 @@ TIMESTEPS = ['T0000', 'T0300', 'T0600', 'T0900',
              'T1200', 'T1500', 'T1800', 'T2100']
 
 
+def iter_dates(begin, end):
+    """Yield 'YYYY-MM-DD' strings for begin..end inclusive.
+
+    begin, end: datetime.date instances. end >= begin.
+    """
+    n = (end - begin).days + 1
+    for i in range(n):
+        yield (begin + datetime.timedelta(days=i)).isoformat()
+
+
 def build_paths(datadir, ceres, date, band):
     """Return the 8 expected timestep file paths for one (band, date).
 
