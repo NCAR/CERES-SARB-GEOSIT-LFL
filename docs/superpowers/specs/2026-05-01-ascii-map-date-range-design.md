@@ -122,7 +122,7 @@ Range report (when invoked with `--date-begin`/`--date-end` and
 ```
 AER SW01 window-mean Extinction_Column_Optical_Depth
 range:       2008-07-01 to 2008-07-31  (31 days)
-source:      /CERES/.../AER_SW01.????????T*.V01.nc4
+source:      /CERES/.../AER_SW01.??????????T*.V01.nc4
 timesteps:   246/248
 days:        31/31
 global mean: 0.18  (area-weighted, cos lat)
