@@ -12,6 +12,34 @@ import os
 import sys
 
 
+TIMESTEPS = ['T0000', 'T0300', 'T0600', 'T0900',
+             'T1200', 'T1500', 'T1800', 'T2100']
+
+
+def build_paths(datadir, ceres, date, band):
+    """Return the 8 expected timestep file paths for one (band, date).
+
+    date: 'YYYY-MM-DD'
+    band: uppercase, e.g. 'SW01'
+    """
+    yyyy, mm, _ = date.split('-')
+    if ceres:
+        base = '/CERES/sarb/dfillmor'
+        subdir = 'GEOSIT_alpha_4'
+    else:
+        base = datadir
+        subdir = 'GEOSIT'
+    fname_tmpl = (
+        'GEOS.it.asm.aer_inst_3hr_glo_L288x180_v24.GEOS5294.'
+        'AER_{band}.{date}{ts}.V01.nc4'
+    )
+    return [
+        os.path.join(base, subdir, yyyy, mm,
+                     fname_tmpl.format(band=band, date=date, ts=ts))
+        for ts in TIMESTEPS
+    ]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Per-band AER aggregate sanity checker (text 9x18 map)')
@@ -38,8 +66,9 @@ def main():
 
     any_failed = False
     for band in bands:
-        # filled in by later tasks
-        logging.info('Would process %s for %s', band, args.date)
+        paths = build_paths(args.datadir, args.ceres, args.date, band)
+        for p in paths:
+            print(p)
 
     sys.exit(1 if any_failed else 0)
 
