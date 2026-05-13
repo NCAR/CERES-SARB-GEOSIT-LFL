@@ -151,6 +151,9 @@ if __name__ == '__main__':
         help='species to include (defaults to all)')
     parser.add_argument('--ceres', action='store_true',
         help='use CERES production paths (/CERES/sarb/dfillmor/GEOSIT_alpha_4)')
+    parser.add_argument('--workdir', type=str, default=None,
+        help='workspace directory for AER input/output, e.g. /CERES/sarb/myuser/ '
+             '(overrides --ceres default of /CERES/sarb/dfillmor/)')
     args = parser.parse_args()
 
     if args.band is None and args.wvl is None:
@@ -166,6 +169,9 @@ if __name__ == '__main__':
     if args.ceres:
         args.datadir = '/CERES/sarb/dfillmor/'
         args.file_pattern = args.file_pattern.replace('GEOSIT/', 'GEOSIT_alpha_4/')
+
+    if args.workdir is not None:
+        args.datadir = args.workdir
 
     """
     Setup logging

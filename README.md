@@ -26,6 +26,15 @@ Run species optics and external mixing for specific bands:
 ./run_external_mix.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 --ceres
 ```
 
+Other users running on CERES machines should add `--workdir /CERES/sarb/<username>/`:
+
+```bash
+./run_species_optics.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 \
+    --ceres --workdir /CERES/sarb/myuser/
+./run_external_mix.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 \
+    --ceres --workdir /CERES/sarb/myuser/
+```
+
 ### Daily Processing Pipeline
 
 `run_daily_processing.sh` orchestrates batch processing across date ranges, launching one background job per day:
@@ -40,8 +49,9 @@ Run species optics and external mixing for specific bands:
 - `--max-jobs N` - Limit concurrent background jobs (default: unlimited)
 - `--logdir DIR` - Directory for log files (default: `./logs`)
 - `--dry-run` - Preview what would run without executing
-- `--ceres` - Use CERES data paths
-- `--datadir DIR` - Custom data directory
+- `--ceres` - Use CERES production data paths
+- `--workdir DIR` - Workspace directory for output files (default with `--ceres`: `/CERES/sarb/dfillmor/`); other users should set this to `/CERES/sarb/<username>/`
+- `--datadir DIR` - Custom input data directory
 
 Each day's output is logged to `logs/processing_YYYY-MM-DD.log`.
 
@@ -110,6 +120,12 @@ Date range (inclusive on both ends):
     --bands sw01 --ceres
 cat qc/aer_check_SW01_2008-07-01_to_2008-07-31.txt
 ncdump -h qc/aer_mean_SW01_2008-07-01_to_2008-07-31.nc
+```
+
+Other users on CERES machines should add `--workdir`:
+```bash
+./check_aer_grid.py --date 2008-07-01 --bands sw01,sw02 \
+    --ceres --workdir /CERES/sarb/myuser/
 ```
 
 `--date` is mutually exclusive with `--date-begin`/`--date-end`. The

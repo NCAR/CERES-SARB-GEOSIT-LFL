@@ -38,7 +38,7 @@ def window_label(date_begin, date_end):
     return f'{date_begin.isoformat()}_to_{date_end.isoformat()}'
 
 
-def build_paths(datadir, ceres, date, band):
+def build_paths(datadir, ceres, date, band, workdir=None):
     """Return the 8 expected timestep file paths for one (band, date).
 
     date: 'YYYY-MM-DD'
@@ -46,7 +46,7 @@ def build_paths(datadir, ceres, date, band):
     """
     yyyy, mm, _ = date.split('-')
     if ceres:
-        base = '/CERES/sarb/dfillmor'
+        base = workdir if workdir else '/CERES/sarb/dfillmor'
         subdir = 'GEOSIT_alpha_4'
     else:
         base = datadir
@@ -62,7 +62,7 @@ def build_paths(datadir, ceres, date, band):
     ]
 
 
-def load_window_mean(datadir, ceres, dates, band):
+def load_window_mean(datadir, ceres, dates, band, workdir=None):
     """Average Extinction_Column_Optical_Depth over all available
     timesteps in the window.
 
@@ -88,7 +88,7 @@ def load_window_mean(datadir, ceres, dates, band):
     lat = lon = None
     n_days_with_data = 0
     for date in dates:
-        paths = build_paths(datadir, ceres, date, band)
+        paths = build_paths(datadir, ceres, date, band, workdir=workdir)
         day_count = 0
         for p in paths:
             if not os.path.exists(p):
@@ -332,6 +332,9 @@ def main():
                         help='output directory (default qc)')
     parser.add_argument('--ceres', action='store_true',
                         help='use CERES production paths (GEOSIT_alpha_4)')
+    parser.add_argument('--workdir', type=str, default=None,
+                        help='workspace directory for AER files, e.g. /CERES/sarb/myuser/ '
+                             '(overrides --ceres default of /CERES/sarb/dfillmor)')
     color_group = parser.add_mutually_exclusive_group()
     color_group.add_argument('--color', dest='color', action='store_const',
                              const=True, default=None,
@@ -390,7 +393,8 @@ def main():
     any_failed = False
     for band in bands:
         field, lat, lon, n_found, n_total, n_days_data, n_days_total = (
-            load_window_mean(args.datadir, args.ceres, dates, band))
+            load_window_mean(args.datadir, args.ceres, dates, band,
+                             workdir=args.workdir))
         if n_found == 0:
             logging.error('Skipping band %s: no usable data in window', band)
             any_failed = True
@@ -398,7 +402,8 @@ def main():
         stats = aggregate_cells(field, lat)
         # Use a glob-style source string so the report shows the pattern
         # rather than every individual path.
-        first_paths = build_paths(args.datadir, args.ceres, dates[0], band)
+        first_paths = build_paths(args.datadir, args.ceres, dates[0], band,
+                                  workdir=args.workdir)
         source_glob = first_paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
         if not is_single_day:
             # Replace the 10-char YYYY-MM-DD date in the embedded path with '?'.

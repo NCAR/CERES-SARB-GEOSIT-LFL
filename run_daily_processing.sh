@@ -159,6 +159,11 @@ for ((i=0; i<${#EXTRA_ARGS[@]}; i++)); do
                 SKIP_DATADIR="${EXTRA_ARGS[i+1]}"
             fi
             ;;
+        --workdir)
+            if (( i + 1 < ${#EXTRA_ARGS[@]} )); then
+                SKIP_DATADIR="${EXTRA_ARGS[i+1]}"
+            fi
+            ;;
     esac
 done
 

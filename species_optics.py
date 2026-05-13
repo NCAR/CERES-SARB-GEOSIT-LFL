@@ -329,7 +329,7 @@ if __name__ == '__main__':
         default=os.path.join(os.getenv('HOME'), 'Data'),
         help='top-level data directory (default $HOME/Data)')
     parser.add_argument('--outdir', type=str,
-        default='/CERES/sarb/dfillmor/',
+        default=os.path.join(os.getenv('HOME'), 'Data', 'Output'),
         help='top-level output directory (default $HOME/Data/Output)')
     parser.add_argument('--aerosol', type=str,
         default=os.path.join('aerosol.yaml'),
@@ -358,6 +358,9 @@ if __name__ == '__main__':
         #     'MERRA2_300.inst3_3d_aer_Nv.YYYYMMDD.nc4'))
     parser.add_argument('--ceres', action='store_true',
         help='use CERES production paths and aerosol_ceres.yaml')
+    parser.add_argument('--workdir', type=str, default=None,
+        help='workspace output directory, e.g. /CERES/sarb/myuser/ '
+             '(overrides --ceres default of /CERES/sarb/dfillmor/)')
     parser.add_argument('--optics_tmpdir', type=str, default=None,
         help='local temp directory for optics files (avoids file locking)')
     args = parser.parse_args()
@@ -378,6 +381,9 @@ if __name__ == '__main__':
         args.datadir = '/CERES_prd/GMAO/'
         args.outdir = '/CERES/sarb/dfillmor/'
         args.file_pattern = os.path.join('GEOSIT', 'YYYY', 'MM', geos_it_filestr)
+
+    if args.workdir is not None:
+        args.outdir = args.workdir
 
     """
     Setup logging
@@ -437,8 +443,9 @@ if __name__ == '__main__':
         date_str = date.strftime('%Y-%m-%b-%d-%j-%H')
         filename = os.path.join(args.datadir,
             fill_date_hour_template(args.file_pattern, date_str))
-        filename_out = filename.replace('/CERES_prd/GMAO/GEOSIT',
-            '/CERES/sarb/dfillmor/GEOSIT_alpha_4')
+        rel = os.path.relpath(filename, args.datadir)
+        rel_out = rel.replace('GEOSIT/', 'GEOSIT_alpha_4/', 1)
+        filename_out = os.path.join(args.outdir, rel_out)
         process_file(filename, filename_out, ds_optics,
             species_map[args.species], args.size_bin, band_label,
             wvl_min, wvl_max, idx_wvl)
