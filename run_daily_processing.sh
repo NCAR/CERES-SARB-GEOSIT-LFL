@@ -32,6 +32,7 @@ usage() {
     echo "  --skip-complete Skip days whose 208 AER outputs (26 bands × 8 timesteps) already exist" >&2
     echo "  --ceres         Pass --ceres flag to processing scripts" >&2
     echo "  --datadir DIR   Pass --datadir to processing scripts" >&2
+    echo "  --workdir DIR   Pass --workdir to processing scripts (output directory)" >&2
     echo "" >&2
     echo "Example:" >&2
     echo "  $0 --start 2010-01-01 --end 2010-01-31 --logdir ./logs --ceres" >&2
