@@ -85,6 +85,10 @@ while [[ $# -gt 0 ]]; do
             EXTRA_ARGS+=(--datadir "$2")
             shift 2
             ;;
+        --workdir)
+            EXTRA_ARGS+=(--workdir "$2")
+            shift 2
+            ;;
         --help|-h)
             usage
             ;;
