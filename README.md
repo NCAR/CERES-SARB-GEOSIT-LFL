@@ -26,11 +26,19 @@ Run species optics and external mixing for specific bands:
 ./run_external_mix.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 --ceres
 ```
 
-Other users running on CERES machines should add `--workdir /CERES/sarb/<username>/`:
+Other users running on CERES machines should add `--workdir` and `--optics-dir`.
+First unpack the optics tarball into your workspace:
+
+```bash
+cd /CERES/sarb/myuser/
+tar xf /CERES/sarb/dfillmor/Optics.tar
+```
+
+Then run with both flags:
 
 ```bash
 ./run_species_optics.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 \
-    --ceres --workdir /CERES/sarb/myuser/
+    --ceres --workdir /CERES/sarb/myuser/ --optics-dir /CERES/sarb/myuser/Optics
 ./run_external_mix.sh --bands sw01,sw02 --start 2008-07-01T00 --end 2008-07-01T23 \
     --ceres --workdir /CERES/sarb/myuser/
 ```
@@ -51,6 +59,7 @@ Other users running on CERES machines should add `--workdir /CERES/sarb/<usernam
 - `--dry-run` - Preview what would run without executing
 - `--ceres` - Use CERES production data paths
 - `--workdir DIR` - Workspace directory for output files (default with `--ceres`: `/CERES/sarb/dfillmor/`); other users should set this to `/CERES/sarb/<username>/`
+- `--optics-dir DIR` - Optics data directory (default with `--ceres`: `/CERES/sarb/dfillmor/Optics`); other users should point this at their unpacked copy of `Optics.tar`
 - `--datadir DIR` - Custom input data directory
 
 Each day's output is logged to `logs/processing_YYYY-MM-DD.log`.

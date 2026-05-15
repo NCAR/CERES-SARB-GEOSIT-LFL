@@ -361,6 +361,11 @@ if __name__ == '__main__':
     parser.add_argument('--workdir', type=str, default=None,
         help='workspace output directory, e.g. /CERES/sarb/myuser/ '
              '(overrides --ceres default of /CERES/sarb/dfillmor/)')
+    parser.add_argument('--optics-dir', type=str, default=None,
+        dest='optics_dir',
+        help='optics data directory, e.g. ~/Optics '
+             '(overrides default of /CERES/sarb/dfillmor/Optics with --ceres, '
+             'or $HOME/Data/Optics otherwise)')
     parser.add_argument('--optics_tmpdir', type=str, default=None,
         help='local temp directory for optics files (avoids file locking)')
     args = parser.parse_args()
@@ -384,6 +389,13 @@ if __name__ == '__main__':
 
     if args.workdir is not None:
         args.outdir = args.workdir
+
+    if args.optics_dir is not None:
+        os.environ['OPTICS_DIR'] = args.optics_dir
+    elif args.ceres:
+        os.environ['OPTICS_DIR'] = '/CERES/sarb/dfillmor/Optics'
+    else:
+        os.environ['OPTICS_DIR'] = os.path.join(os.getenv('HOME'), 'Data', 'Optics')
 
     """
     Setup logging
