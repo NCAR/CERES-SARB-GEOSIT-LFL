@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 
 from utils import fill_date_hour_template
+from sources import get_source
 
 np.set_printoptions(threshold=np.inf)
 
@@ -140,9 +141,12 @@ if __name__ == '__main__':
     parser.add_argument('--end', type=str,
         default='2010-01-01T00',
         help='end datetime (YYYY-MM-DDTHH)')
-    parser.add_argument('--file_pattern', type=str,
-        default=os.path.join('GEOSIT', 'YYYY', 'MM',
-            'GEOS.it.asm.aer_inst_3hr_glo_L288x180_v24.GEOS5294.*_band.YYYY-MM-DDTHH00.V01.nc4'))
+    parser.add_argument('--file_pattern', type=str, default=None,
+        help='glob pattern for per-species inputs under --datadir; '
+             'defaults to the --source default (see sources.py)')
+    parser.add_argument('--source', choices=['geosit', 'merra2'],
+        default='geosit',
+        help='input data source whose per-species outputs we mix')
     parser.add_argument('--band', type=str, default=None,
         help='LFL spectral band (e.g. sw05, lw01)')
     parser.add_argument('--wvl', type=float, default=None,
@@ -168,7 +172,6 @@ if __name__ == '__main__':
 
     if args.ceres:
         args.datadir = '/CERES/sarb/dfillmor/'
-        args.file_pattern = args.file_pattern.replace('GEOSIT/', 'GEOSIT_alpha_4/')
 
     if args.workdir is not None:
         args.datadir = args.workdir
@@ -179,7 +182,10 @@ if __name__ == '__main__':
     logging_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(stream=args.logfile, level=logging_level)
 
-    dates = pd.date_range(start=args.start, end=args.end, freq='3h')
+    src = get_source(args.source)
+    if args.file_pattern is None:
+        args.file_pattern = src.species_glob_pattern
+    dates = pd.date_range(start=args.start, end=args.end, freq=src.cadence)
     logging.info(dates)
 
     for date in dates:
