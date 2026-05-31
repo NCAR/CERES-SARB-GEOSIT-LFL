@@ -6,15 +6,17 @@ set -euo pipefail
 renice 10 $$ >/dev/null 2>&1 || true
 
 usage() {
-    echo "Usage: $0 [--bands sw01,sw02,...|all] [--optics_tmpdir DIR|auto] [extra species_optics.py args]" >&2
+    echo "Usage: $0 [--bands sw01,sw02,...|all] [--source geosit|merra2] [--optics_tmpdir DIR|auto] [extra species_optics.py args]" >&2
     echo "Example: $0 --bands sw01,lw01 --optics_tmpdir auto --start 2010-01-01T00 --end 2010-01-01T00" >&2
     echo "" >&2
+    echo "  --source SOURCE       Input data source (geosit | merra2; default geosit)" >&2
     echo "  --optics_tmpdir DIR   Use DIR for local optics file copies (avoids file locking)" >&2
     echo "  --optics_tmpdir auto  Auto-create a temp directory (cleaned up on exit)" >&2
     exit 1
 }
 
 BANDS=()
+SOURCE="geosit"
 OPTICS_TMPDIR=""
 AUTO_TMPDIR=0
 WVL=""
@@ -27,6 +29,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --wvl)
             WVL="$2"
+            shift 2
+            ;;
+        --source)
+            SOURCE="$2"
             shift 2
             ;;
         --optics_tmpdir)
@@ -102,21 +108,21 @@ for BAND in "${BAND_LIST[@]}"; do
     echo "Running species_optics.py for $BAND"
 
     for SP in "${SPECIES_NO_BIN[@]}"; do
-        echo ">>> species_optics.py --species $SP ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-        python species_optics.py --species "$SP" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+        echo ">>> species_optics.py --source $SOURCE --species $SP ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+        python species_optics.py --source "$SOURCE" --species "$SP" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     done
 
     for SP in "${SPECIES_5BIN[@]}"; do
         for BIN in "${SIZE_BINS_5[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ">>> species_optics.py --source $SOURCE --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --source "$SOURCE" --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 
     for SP in "${SPECIES_3BIN[@]}"; do
         for BIN in "${SIZE_BINS_3[@]}"; do
-            echo ">>> species_optics.py --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            echo ">>> species_optics.py --source $SOURCE --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+            python species_optics.py --source "$SOURCE" --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
         done
     done
 

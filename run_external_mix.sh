@@ -6,12 +6,15 @@ set -euo pipefail
 renice 10 $$ >/dev/null 2>&1 || true
 
 usage() {
-    echo "Usage: $0 [--bands sw01,sw02,...|all] [--no-clean] [--clean-species] [--day-date YYYY-MM-DD] [extra external_mix.py args]" >&2
+    echo "Usage: $0 [--bands sw01,sw02,...|all] [--source geosit|merra2] [--no-clean] [--clean-species] [--day-date YYYY-MM-DD] [extra external_mix.py args]" >&2
     echo "Example: $0 --bands sw01,lw01 --start 2010-01-01T00 --end 2010-01-01T00" >&2
+    echo "" >&2
+    echo "  --source SOURCE  Input data source (geosit | merra2; default geosit)" >&2
     exit 1
 }
 
 BANDS=()
+SOURCE="geosit"
 CLEAN_AER=1
 CLEAN_SPECIES=0
 WVL=""
@@ -25,6 +28,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --wvl)
             WVL="$2"
+            shift 2
+            ;;
+        --source)
+            SOURCE="$2"
             shift 2
             ;;
         --no-clean)
@@ -54,12 +61,26 @@ EXTRA_ARGS=("$@")
 
 # Detect data root for cleanup based on args (very lightweight parsing)
 DATADIR="${HOME}/Data"
-SUBDIR="GEOSIT"
+case "$SOURCE" in
+    merra2)
+        SUBDIR_DEFAULT="MERRA2"
+        SUBDIR_CERES="MERRA2_alpha_4"
+        ;;
+    geosit)
+        SUBDIR_DEFAULT="GEOSIT"
+        SUBDIR_CERES="GEOSIT_alpha_4"
+        ;;
+    *)
+        echo "Error: unknown --source value '$SOURCE' (expected geosit|merra2)" >&2
+        exit 1
+        ;;
+esac
+SUBDIR="$SUBDIR_DEFAULT"
 for ((i=0; i<${#EXTRA_ARGS[@]}; i++)); do
     case "${EXTRA_ARGS[i]}" in
         --ceres)
             DATADIR="/CERES/sarb/dfillmor"
-            SUBDIR="GEOSIT_alpha_4"
+            SUBDIR="$SUBDIR_CERES"
             ;;
         --datadir)
             # Next arg should be the path
@@ -124,8 +145,8 @@ for BAND in "${BAND_LIST[@]}"; do
         fi
     fi
 
-    echo ">>> external_mix.py ${PY_BAND_ARGS[*]} ${EXTRA_ARGS[*]:-}"
-    python external_mix.py "${PY_BAND_ARGS[@]}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+    echo ">>> external_mix.py --source $SOURCE ${PY_BAND_ARGS[*]} ${EXTRA_ARGS[*]:-}"
+    python external_mix.py --source "$SOURCE" "${PY_BAND_ARGS[@]}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
     echo "Finished external_mix.py for $BAND"
 
     if [[ $CLEAN_SPECIES -eq 1 ]]; then
