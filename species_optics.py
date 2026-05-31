@@ -12,6 +12,7 @@ from pprint import pprint
 from scipy.interpolate import interp1d
 
 from utils import fill_date_hour_template
+from sources import get_source
 
 np.set_printoptions(threshold=np.inf)
 
@@ -122,16 +123,15 @@ def read_aerosol_optics(filename, species, band, optics_tmpdir=None):
     return ds_optics_interp, ds_bands
 
 
-def process_file(filename, filename_out,
+def process_file_one_timestep(input_path, output_path, ds, t,
     ds_optics, species, size_bin, band_label,
-    wvl_min, wvl_max, idx_wvl):
+    wvl_min, wvl_max, idx_wvl, date):
 
-    date_str = filename.split('.')[2]
+    date_str = date.strftime('%Y%m%d')
 
-    logging.info(filename)
-    print(filename)
-    print(filename_out)
-    ds = xr.open_dataset(filename)
+    logging.info(input_path)
+    print(input_path)
+    print(output_path)
     ntime, nlev, nlat, nlon = ds['RH'].shape
     # print(ntime, nlev, nlat, nlon)
     # (time: 8, lev: 72, lat: 361, lon: 576)
@@ -163,154 +163,143 @@ def process_file(filename, filename_out,
 
     tau_thresh = 0.00001
 
-    for t in range(ntime):
+    utc_time = datetime.now(UTC)
+    utc_time_str = datetime.strftime(utc_time, '%Y/%m/%d_%H:%M:%S')
 
-        utc_time = datetime.now(UTC)
-        utc_time_str = datetime.strftime(utc_time, '%Y/%m/%d_%H:%M:%S')
+    logging.info(ds['time'].values[t])
 
-        logging.info(ds['time'].values[t])
+    rh = ds['RH'].values[t,:,:,:].flatten()
+    if 'PHO' in species:
+        idx_rh = np.zeros(len(rh), dtype=np.int32)
+    else:
+        idx_rh = np.array(np.floor(rh * 100), dtype=np.int32)
+        idx_rh[idx_rh > 99] = 99
 
-        rh = ds['RH'].values[t,:,:,:].flatten()
-        if 'PHO' in species:
-            idx_rh = np.zeros(len(rh), dtype=np.int32)
-        else:
-            idx_rh = np.array(np.floor(rh * 100), dtype=np.int32)
-            idx_rh[idx_rh > 99] = 99
+    delp = ds['DELP'].values[t,:,:,:].flatten()
 
-        delp = ds['DELP'].values[t,:,:,:].flatten()
+    q_species = ds[species].values[t,:,:,:].flatten()
 
-        q_species = ds[species].values[t,:,:,:].flatten()
+    k_ext = ds_optics['ext'].values[idx_size, idx_rh, idx_wvl]
+    k_sca = ds_optics['sca'].values[idx_size, idx_rh, idx_wvl]
+    asm = ds_optics['asm'].values[idx_size, idx_rh, idx_wvl]
 
-        k_ext = ds_optics['ext'].values[idx_size, idx_rh, idx_wvl]
-        k_sca = ds_optics['sca'].values[idx_size, idx_rh, idx_wvl]
-        asm = ds_optics['asm'].values[idx_size, idx_rh, idx_wvl]
+    tau_ext = delp * q_species * k_ext / g_earth
+    tau_sca = delp * q_species * k_sca / g_earth
 
-        tau_ext = delp * q_species * k_ext / g_earth
-        tau_sca = delp * q_species * k_sca / g_earth
+    da_delp = xr.DataArray(
+        delp.reshape(nlev, nlat, nlon).astype(np.float32),
+        dims=['lev', 'lat', 'lon'])
+    da_tau_ext = xr.DataArray(
+        tau_ext.reshape(nlev, nlat, nlon).astype(np.float32),
+        dims=['lev', 'lat', 'lon'])
+    da_tau_sca = xr.DataArray(
+        tau_sca.reshape(nlev, nlat, nlon).astype(np.float32),
+        dims=['lev', 'lat', 'lon'])
+    da_asm = xr.DataArray(
+        asm.reshape(nlev, nlat, nlon).astype(np.float32),
+        dims=['lev', 'lat', 'lon'])
 
-        da_delp = xr.DataArray(
-            delp.reshape(nlev, nlat, nlon).astype(np.float32),
-            dims=['lev', 'lat', 'lon'])
-        da_tau_ext = xr.DataArray(
-            tau_ext.reshape(nlev, nlat, nlon).astype(np.float32),
-            dims=['lev', 'lat', 'lon'])
-        da_tau_sca = xr.DataArray(
-            tau_sca.reshape(nlev, nlat, nlon).astype(np.float32),
-            dims=['lev', 'lat', 'lon'])
-        da_asm = xr.DataArray(
-            asm.reshape(nlev, nlat, nlon).astype(np.float32),
-            dims=['lev', 'lat', 'lon'])
+    da_tau_ext_column = da_tau_ext.sum(dim='lev')
 
-        da_tau_ext_column = da_tau_ext.sum(dim='lev')
+    lat_mid = 0.5 * (ds.coords['lat'].values[:-1]
+            + ds.coords['lat'].values[1:])
+    lat_sub = 0.5 * (lat_mid[:-1:2] + lat_mid[1::2])
 
-        lat_mid = 0.5 * (ds.coords['lat'].values[:-1]
-                + ds.coords['lat'].values[1:])
-        lat_sub = 0.5 * (lat_mid[:-1:2] + lat_mid[1::2])
+    delp_mid = 0.5 * (da_delp.values[:,:-1,:] + da_delp.values[:,1:,:])
+    delp_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
 
-        delp_mid = 0.5 * (da_delp.values[:,:-1,:] + da_delp.values[:,1:,:])
-        delp_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
+    tau_ext_mid = 0.5 * (da_tau_ext.values[:,:-1,:] + da_tau_ext.values[:,1:,:])
+    tau_ext_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
 
-        tau_ext_mid = 0.5 * (da_tau_ext.values[:,:-1,:] + da_tau_ext.values[:,1:,:])
-        tau_ext_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
+    tau_sca_mid = 0.5 * (da_tau_sca.values[:,:-1,:] + da_tau_sca.values[:,1:,:])
+    tau_sca_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
 
-        tau_sca_mid = 0.5 * (da_tau_sca.values[:,:-1,:] + da_tau_sca.values[:,1:,:])
-        tau_sca_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
+    asm_mid = 0.5 * (da_asm.values[:,:-1,:] + da_asm.values[:,1:,:])
+    asm_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
 
-        asm_mid = 0.5 * (da_asm.values[:,:-1,:] + da_asm.values[:,1:,:])
-        asm_sub = np.zeros((nlev // 3, nlat // 2, nlon // 2), dtype=np.float32)
+    for ilev in range(nlev // 3):
+        ilev_start = 3 * ilev
+        delp_sub[ilev,:,:] \
+            = 0.5 * (delp_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
+            + delp_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
 
-        for ilev in range(nlev // 3):
-            ilev_start = 3 * ilev
-            delp_sub[ilev,:,:] \
-                = 0.5 * (delp_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
-                + delp_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
+        tau_ext_sub[ilev,:,:] \
+            = 0.5 * (tau_ext_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
+            + tau_ext_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
 
-            tau_ext_sub[ilev,:,:] \
-                = 0.5 * (tau_ext_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
-                + tau_ext_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
+        tau_sca_sub[ilev,:,:] \
+            = 0.5 * (tau_sca_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
+            + tau_sca_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
 
-            tau_sca_sub[ilev,:,:] \
-                = 0.5 * (tau_sca_mid[ilev_start:ilev_start+3,:-1:2,::2].sum(axis=0)
-                + tau_sca_mid[ilev_start:ilev_start+3,1::2,::2].sum(axis=0))
+        asm_sub[ilev,:,:] \
+            = 0.5 * (asm_mid[ilev_start:ilev_start+3,:-1:2,::2].mean(axis=0)
+            + asm_mid[ilev_start:ilev_start+3,1::2,::2].mean(axis=0))
 
-            asm_sub[ilev,:,:] \
-                = 0.5 * (asm_mid[ilev_start:ilev_start+3,:-1:2,::2].mean(axis=0)
-                + asm_mid[ilev_start:ilev_start+3,1::2,::2].mean(axis=0))
+    tau_ext_sub = np.clip(tau_ext_sub, 0, 10)
+    tau_sca_sub = np.clip(tau_sca_sub, 0, tau_ext_sub)
+    asm_sub = np.clip(asm_sub, -1, 1)
 
-        tau_ext_sub = np.clip(tau_ext_sub, 0, 10)
-        tau_sca_sub = np.clip(tau_sca_sub, 0, tau_ext_sub)
-        asm_sub = np.clip(asm_sub, -1, 1)
+    da_lat_sub = xr.DataArray(lat_sub, dims=['lat']).astype(np.float32)
+    da_lat_sub.attrs['long_name'] = 'latitude'
+    da_lat_sub.attrs['units'] = 'degrees_north'
 
-        da_lat_sub = xr.DataArray(lat_sub, dims=['lat']).astype(np.float32)
-        da_lat_sub.attrs['long_name'] = 'latitude'
-        da_lat_sub.attrs['units'] = 'degrees_north'
+    da_delp_sub = xr.DataArray(delp_sub,
+        dims=['lev', 'lat', 'lon'])
+    da_tau_ext_sub = xr.DataArray(tau_ext_sub,
+        dims=['lev', 'lat', 'lon'])
+    da_tau_sca_sub = xr.DataArray(tau_sca_sub,
+        dims=['lev', 'lat', 'lon'])
+    da_asm_sub = xr.DataArray(asm_sub,
+        dims=['lev', 'lat', 'lon'])
 
-        da_delp_sub = xr.DataArray(delp_sub,
-            dims=['lev', 'lat', 'lon'])
-        da_tau_ext_sub = xr.DataArray(tau_ext_sub,
-            dims=['lev', 'lat', 'lon'])
-        da_tau_sca_sub = xr.DataArray(tau_sca_sub,
-            dims=['lev', 'lat', 'lon'])
-        da_asm_sub = xr.DataArray(asm_sub,
-            dims=['lev', 'lat', 'lon'])
+    da_tau_ext_sub_column = da_tau_ext_sub.sum(dim='lev')
 
-        da_tau_ext_sub_column = da_tau_ext_sub.sum(dim='lev')
+    print('AOD Global Mean %.3f' % da_tau_ext_column.mean())
 
-        print('AOD Global Mean %.3f' % da_tau_ext_column.mean())
+    """
+    Output
+    """
+    ds.coords['lat'].values[nlat // 2] = 0.0
+    ds_out = xr.Dataset({
+        'PS': ds['PS'][t,:,:],
+        'DELP': ds['DELP'][t,:,:,:],
+        'Extinction_Layer_Optical_Depth': da_tau_ext,
+        'Scattering_Layer_Optical_Depth': da_tau_sca,
+        'Layer_Asymmetry_Parameter': da_asm,
+        'Extinction_Column_Optical_Depth': da_tau_ext_column},
+        coords = {'lat': ds.coords['lat'].astype(np.float32),
+                  'lon': ds.coords['lon'].astype(np.float32)})
+    ds_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
+    ds_out.attrs['input_filename'] = input_path
+    ds_out.attrs['processing_datetime'] = utc_time_str
+    ds_out.attrs['Langley_Fu_Liou_band'] = band_label
+    ds_out.attrs['band_wvl_min_micron'] = wvl_min
+    ds_out.attrs['band_wvl_max_micron'] = wvl_max
+    ds_out.attrs['script_version'] \
+        = os.path.join(os.getcwd(), 'species_optics.py ') \
+        + __version__
 
-        """
-        Output
-        """
-        ds.coords['lat'].values[nlat // 2] = 0.0
-        ds_out = xr.Dataset({
-            'PS': ds['PS'][t,:,:],
-            'DELP': ds['DELP'][t,:,:,:],
-            'Extinction_Layer_Optical_Depth': da_tau_ext,
-            'Scattering_Layer_Optical_Depth': da_tau_sca,
-            'Layer_Asymmetry_Parameter': da_asm,
-            'Extinction_Column_Optical_Depth': da_tau_ext_column},
-            coords = {'lat': ds.coords['lat'].astype(np.float32),
-                      'lon': ds.coords['lon'].astype(np.float32)})
-        ds_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
-        ds_out.attrs['input_filename'] = filename
-        ds_out.attrs['processing_datetime'] = utc_time_str
-        ds_out.attrs['Langley_Fu_Liou_band'] = band_label
-        ds_out.attrs['band_wvl_min_micron'] = wvl_min
-        ds_out.attrs['band_wvl_max_micron'] = wvl_max
-        ds_out.attrs['script_version'] \
-            = os.path.join(os.getcwd(), 'species_optics.py ') \
-            + __version__
-        filename_labeled_out \
-            = filename_out.replace('GEOS5294.',
-                'GEOS5294.' + species_label + '_' + band_label + '.')
-                # '_%.2dZ.nc' % (3 * t)).replace('Nv.',
-                # 'Nv.' + species + '_' + band.upper() + '.')
-        # logging.info('writing:' + filename_labeled_out)
-        # ds_out.to_netcdf(filename_labeled_out)
-        # print(filename_labeled_out)
-
-        filename_subsampled_out \
-            = filename_labeled_out.replace('L576x361_v72', 'L288x180_v24')
-            # = filename_labeled_out.replace('Nv', 'Nv_180x288L24')
-        ds_sub_out = xr.Dataset({
-            'DELP': da_delp_sub,
-            'Extinction_Layer_Optical_Depth': da_tau_ext_sub,
-            'Scattering_Layer_Optical_Depth': da_tau_sca_sub,
-            'Layer_Asymmetry_Parameter': da_asm_sub,
-            'Extinction_Column_Optical_Depth': da_tau_ext_sub_column},
-            coords = {'lat': da_lat_sub,
-                      'lon': ds.coords['lon'][::2].astype(np.float32)})
-        ds_sub_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
-        ds_sub_out.attrs['input_filename'] = filename
-        ds_sub_out.attrs['processing_datetime'] = utc_time_str
-        ds_sub_out.attrs['Langley_Fu_Liou_band'] = band_label
-        ds_sub_out.attrs['band_wvl_min_micron'] = wvl_min
-        ds_sub_out.attrs['band_wvl_max_micron'] = wvl_max
-        ds_sub_out.attrs['script_version'] \
-            = os.path.join(os.getcwd(), 'species_optics.py ') \
-            + __version__
-        ds_sub_out.to_netcdf(filename_subsampled_out)
-        print(filename_subsampled_out)
+    # output_path is built source-aware by Source.build_output_name in the caller.
+    filename_subsampled_out = output_path
+    ds_sub_out = xr.Dataset({
+        'DELP': da_delp_sub,
+        'Extinction_Layer_Optical_Depth': da_tau_ext_sub,
+        'Scattering_Layer_Optical_Depth': da_tau_sca_sub,
+        'Layer_Asymmetry_Parameter': da_asm_sub,
+        'Extinction_Column_Optical_Depth': da_tau_ext_sub_column},
+        coords = {'lat': da_lat_sub,
+                  'lon': ds.coords['lon'][::2].astype(np.float32)})
+    ds_sub_out.attrs['datetime'] = date_str + ('_%.2dZ' % (3 * t))
+    ds_sub_out.attrs['input_filename'] = input_path
+    ds_sub_out.attrs['processing_datetime'] = utc_time_str
+    ds_sub_out.attrs['Langley_Fu_Liou_band'] = band_label
+    ds_sub_out.attrs['band_wvl_min_micron'] = wvl_min
+    ds_sub_out.attrs['band_wvl_max_micron'] = wvl_max
+    ds_sub_out.attrs['script_version'] \
+        = os.path.join(os.getcwd(), 'species_optics.py ') \
+        + __version__
+    ds_sub_out.to_netcdf(filename_subsampled_out)
+    print(filename_subsampled_out)
 
 
 if __name__ == '__main__':
@@ -350,12 +339,13 @@ if __name__ == '__main__':
     parser.add_argument('--end', type=str,
         default='2010-01-01T00',
         help='end datetime (YYYY-MM-DDTHH)')
-    geos_it_filestr = \
-        'GEOS.it.asm.aer_inst_3hr_glo_L576x361_v72.GEOS5294.YYYY-MM-DDTHH00.V01.nc4'
-    parser.add_argument('--file_pattern', type=str,
-        default=os.path.join('GEOSIT', 'YYYY', 'MM', geos_it_filestr))
-        # default=os.path.join('MERRA2', 'YYYY', 'MM',
-        #     'MERRA2_300.inst3_3d_aer_Nv.YYYYMMDD.nc4'))
+    parser.add_argument('--file_pattern', type=str, default=None,
+        help='input file pattern under --datadir; defaults to the '
+             '--source default (see sources.py)')
+    parser.add_argument('--source', choices=['geosit', 'merra2'],
+        default='geosit',
+        help='input data source: geosit (3-hourly files) or '
+             'merra2 (daily files)')
     parser.add_argument('--ceres', action='store_true',
         help='use CERES production paths and aerosol_ceres.yaml')
     parser.add_argument('--workdir', type=str, default=None,
@@ -381,11 +371,11 @@ if __name__ == '__main__':
         args.outdir = os.path.join(os.getenv('HOME'), 'Data', 'Output')
 
     if args.ceres:
-        # Point to production aerosol config and paths
+        # Point to production aerosol config and paths. The file pattern
+        # comes from sources.get_source(args.source) below — not hardcoded.
         args.aerosol = 'aerosol_ceres.yaml'
         args.datadir = '/CERES_prd/GMAO/'
         args.outdir = '/CERES/sarb/dfillmor/'
-        args.file_pattern = os.path.join('GEOSIT', 'YYYY', 'MM', geos_it_filestr)
 
     if args.workdir is not None:
         args.outdir = args.workdir
@@ -446,18 +436,51 @@ if __name__ == '__main__':
         idx_wvl = np.argmin(np.abs(wvls - wvl_band))
         logging.info('wavelength:%.2f\n' % wvls[idx_wvl])
 
-    # dates = pd.date_range(start=args.start, end=args.end, freq='D')
-    dates = pd.date_range(start=args.start, end=args.end, freq='3h')
+    src = get_source(args.source)
+    if args.file_pattern is None:
+        args.file_pattern = src.default_file_pattern
+    dates = pd.date_range(start=args.start, end=args.end, freq=src.cadence)
     logging.info(dates)
     print(dates)
 
     for date in dates:
-        date_str = date.strftime('%Y-%m-%b-%d-%j-%H')
-        filename = os.path.join(args.datadir,
-            fill_date_hour_template(args.file_pattern, date_str))
-        rel = os.path.relpath(filename, args.datadir)
-        rel_out = rel.replace('GEOSIT/', 'GEOSIT_alpha_4/', 1)
-        filename_out = os.path.join(args.outdir, rel_out)
-        process_file(filename, filename_out, ds_optics,
-            species_map[args.species], args.size_bin, band_label,
-            wvl_min, wvl_max, idx_wvl)
+        input_path = src.resolve_input(args.datadir, args.file_pattern, date)
+        ds = xr.open_dataset(input_path)
+        ntime = ds['RH'].shape[0]
+        species_actual = species_map[args.species]
+
+        # Build species_label for filename — matches today's process_file
+        # internal logic (lines 147-162 of the original). Note the
+        # asymmetric padding: SS/DU keep 3-digit bin ('SS001'), NO3AN
+        # uses 1-digit ('NO3AN1'). This matches external_mix.py:26 which
+        # defines SPECIES_WITH_BIN with the same format.
+        if species_actual in ('SS', 'DU'):
+            species_label = species_actual + args.size_bin
+        elif species_actual == 'NO3AN':
+            species_label = species_actual + str(int(args.size_bin))
+        else:
+            species_label = species_actual
+
+        for t in range(ntime):
+            output_path = src.build_output_name(
+                input_path=input_path,
+                datadir=args.datadir,
+                outdir=args.outdir,
+                date=date,
+                t=t,
+                species_label=species_label,
+                band_label=band_label)
+            process_file_one_timestep(
+                input_path=input_path,
+                output_path=output_path,
+                ds=ds,
+                t=t,
+                ds_optics=ds_optics,
+                species=species_actual,
+                size_bin=args.size_bin,
+                band_label=band_label,
+                wvl_min=wvl_min,
+                wvl_max=wvl_max,
+                idx_wvl=idx_wvl,
+                date=date)
+        ds.close()
