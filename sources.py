@@ -24,6 +24,8 @@ class Source:
     resolve_input: Callable               # (datadir, pattern, date) -> str
     build_output_name: Callable           # (input_path, datadir, outdir, date, t,
                                           #  species_label, band_label) -> str
+    iter_timesteps: Callable              # (date) -> list[pd.Timestamp]; the
+                                          #  per-date timesteps external_mix mixes
 
 
 def _date_to_template_str(date):
@@ -77,6 +79,21 @@ def _merra2_build_output_name(input_path, datadir, outdir, date, t,
         f'{species_label}_{band_label}.{day}T{hh}00.nc4')
 
 
+def _single_timestep(date):
+    # GEOS-IT: the date_range already steps at the 3-hourly cadence, so each
+    # date IS one timestep. external_mix mixes exactly that timestep.
+    return [date]
+
+
+def _merra2_iter_timesteps(date):
+    # MERRA-2: one daily file holds 8 three-hourly timesteps (HH = 00..21).
+    # species_optics expands these via ntime; external_mix has no open
+    # dataset to read ntime from, so the Source enumerates them here.
+    # Mirrors the HH = 3 * t labeling in _merra2_build_output_name.
+    day = date.normalize()
+    return [day.replace(hour=3 * i) for i in range(8)]
+
+
 SOURCES: dict[str, Source] = {}
 
 SOURCES['geosit'] = Source(
@@ -97,6 +114,7 @@ SOURCES['geosit'] = Source(
         '*_band.YYYY-MM-DDTHH00.V01.nc4'),
     resolve_input=_geosit_resolve_input,
     build_output_name=_geosit_build_output_name,
+    iter_timesteps=_single_timestep,
 )
 
 SOURCES['merra2'] = Source(
@@ -115,6 +133,7 @@ SOURCES['merra2'] = Source(
         '*_band.YYYY-MM-DDTHH00.nc4'),
     resolve_input=_merra2_resolve_input,
     build_output_name=_merra2_build_output_name,
+    iter_timesteps=_merra2_iter_timesteps,
 )
 
 

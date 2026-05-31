@@ -166,5 +166,34 @@ class TestMerra2Source(unittest.TestCase):
             self.assertEqual(got, expected, f't={t}')
 
 
+class TestIterTimesteps(unittest.TestCase):
+    """external_mix enumerates mix work via Source.iter_timesteps(date).
+    GEOS-IT's date_range cadence (3h) already steps per timestep, so each
+    date is its own single timestep. MERRA-2 daily files hold 8 three-hourly
+    timesteps that a single daily date must expand into."""
+
+    def test_geosit_single_timestep_per_date(self):
+        src = get_source('geosit')
+        date = pd.Timestamp('2008-07-01T03')
+        self.assertEqual(src.iter_timesteps(date), [date])
+
+    def test_merra2_expands_daily_date_to_eight(self):
+        src = get_source('merra2')
+        ts = src.iter_timesteps(pd.Timestamp('2008-07-01T00'))
+        self.assertEqual(len(ts), 8)
+        self.assertEqual([t.strftime('%Y-%m-%dT%H%M') for t in ts],
+                         ['2008-07-01T0000', '2008-07-01T0300',
+                          '2008-07-01T0600', '2008-07-01T0900',
+                          '2008-07-01T1200', '2008-07-01T1500',
+                          '2008-07-01T1800', '2008-07-01T2100'])
+
+    def test_merra2_normalizes_to_day_start(self):
+        # A non-midnight daily date still expands to the day's 8 timesteps.
+        src = get_source('merra2')
+        ts = src.iter_timesteps(pd.Timestamp('2008-07-01T06'))
+        self.assertEqual(ts[0], pd.Timestamp('2008-07-01T00'))
+        self.assertEqual(ts[-1], pd.Timestamp('2008-07-01T21'))
+
+
 if __name__ == '__main__':
     unittest.main()

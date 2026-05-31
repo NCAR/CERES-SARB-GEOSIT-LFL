@@ -189,9 +189,14 @@ if __name__ == '__main__':
     logging.info(dates)
 
     for date in dates:
-        date_str = date.strftime('%Y-%m-%b-%d-%j-%H')
-        logging.info(date_str)
-        filename = os.path.join(args.datadir,
-            fill_date_hour_template(args.file_pattern, date_str))
-        filename = filename.replace('band', band_label)
-        process_file(filename, args.species)
+        # Each date expands to the timesteps to mix. For GEOS-IT this is the
+        # date itself (the 3h date_range already steps per timestep); for
+        # MERRA-2 a daily date expands to the 8 three-hourly timesteps held
+        # in one daily file. See sources.Source.iter_timesteps.
+        for ts in src.iter_timesteps(date):
+            date_str = ts.strftime('%Y-%m-%b-%d-%j-%H')
+            logging.info(date_str)
+            filename = os.path.join(args.datadir,
+                fill_date_hour_template(args.file_pattern, date_str))
+            filename = filename.replace('band', band_label)
+            process_file(filename, args.species)
