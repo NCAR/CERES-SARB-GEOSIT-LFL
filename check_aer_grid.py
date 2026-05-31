@@ -15,6 +15,8 @@ import sys
 import numpy as np
 import xarray as xr
 
+from sources import get_source
+
 
 TIMESTEPS = ['T0000', 'T0300', 'T0600', 'T0900',
              'T1200', 'T1500', 'T1800', 'T2100']
@@ -38,31 +40,32 @@ def window_label(date_begin, date_end):
     return f'{date_begin.isoformat()}_to_{date_end.isoformat()}'
 
 
-def build_paths(datadir, ceres, date, band, workdir=None):
+def build_paths(datadir, ceres, date, band, workdir=None, source='geosit'):
     """Return the 8 expected timestep file paths for one (band, date).
 
     date: 'YYYY-MM-DD'
     band: uppercase, e.g. 'SW01'
+    source: 'geosit' or 'merra2' — picks subdir and filename template.
     """
     yyyy, mm, _ = date.split('-')
+    src = get_source(source)
     if ceres:
         base = workdir if workdir else '/CERES/sarb/dfillmor'
-        subdir = 'GEOSIT_alpha_4'
+        subdir = src.output_subdir
     else:
         base = datadir
-        subdir = 'GEOSIT'
-    fname_tmpl = (
-        'GEOS.it.asm.aer_inst_3hr_glo_L288x180_v24.GEOS5294.'
-        'AER_{band}.{date}{ts}.V01.nc4'
-    )
+        # Non-CERES uses the bare-source layout: 'GEOSIT' / 'MERRA2'
+        # (matches the input-tree convention, not the _alpha_4 output tree).
+        subdir = src.output_subdir.replace('_alpha_4', '')
     return [
         os.path.join(base, subdir, yyyy, mm,
-                     fname_tmpl.format(band=band, date=date, ts=ts))
+                     src.aer_filename_template.format(
+                         band=band, date=date, ts=ts))
         for ts in TIMESTEPS
     ]
 
 
-def load_window_mean(datadir, ceres, dates, band, workdir=None):
+def load_window_mean(datadir, ceres, dates, band, workdir=None, source='geosit'):
     """Average Extinction_Column_Optical_Depth over all available
     timesteps in the window.
 
@@ -88,7 +91,8 @@ def load_window_mean(datadir, ceres, dates, band, workdir=None):
     lat = lon = None
     n_days_with_data = 0
     for date in dates:
-        paths = build_paths(datadir, ceres, date, band, workdir=workdir)
+        paths = build_paths(datadir, ceres, date, band,
+                            workdir=workdir, source=source)
         day_count = 0
         for p in paths:
             if not os.path.exists(p):
@@ -331,7 +335,10 @@ def main():
     parser.add_argument('--outdir', type=str, default='qc',
                         help='output directory (default qc)')
     parser.add_argument('--ceres', action='store_true',
-                        help='use CERES production paths (GEOSIT_alpha_4)')
+                        help='use CERES production paths')
+    parser.add_argument('--source', choices=['geosit', 'merra2'],
+                        default='geosit',
+                        help='input data source whose AER outputs to QC')
     parser.add_argument('--workdir', type=str, default=None,
                         help='workspace directory for AER files, e.g. /CERES/sarb/myuser/ '
                              '(overrides --ceres default of /CERES/sarb/dfillmor)')
@@ -394,7 +401,7 @@ def main():
     for band in bands:
         field, lat, lon, n_found, n_total, n_days_data, n_days_total = (
             load_window_mean(args.datadir, args.ceres, dates, band,
-                             workdir=args.workdir))
+                             workdir=args.workdir, source=args.source))
         if n_found == 0:
             logging.error('Skipping band %s: no usable data in window', band)
             any_failed = True
@@ -403,8 +410,12 @@ def main():
         # Use a glob-style source string so the report shows the pattern
         # rather than every individual path.
         first_paths = build_paths(args.datadir, args.ceres, dates[0], band,
-                                  workdir=args.workdir)
-        source_glob = first_paths[0].replace('T0000.V01.nc4', 'T*.V01.nc4')
+                                  workdir=args.workdir, source=args.source)
+        if args.source == 'merra2':
+            source_glob = first_paths[0].replace('T0000.nc4', 'T*.nc4')
+        else:
+            source_glob = first_paths[0].replace(
+                'T0000.V01.nc4', 'T*.V01.nc4')
         if not is_single_day:
             # Replace the 10-char YYYY-MM-DD date in the embedded path with '?'.
             source_glob = source_glob.replace(dates[0], '??????????', 1)
