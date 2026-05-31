@@ -11,7 +11,6 @@ from datetime import datetime, UTC
 from pprint import pprint
 from scipy.interpolate import interp1d
 
-from utils import fill_date_hour_template
 from sources import get_source
 
 np.set_printoptions(threshold=np.inf)
@@ -144,7 +143,6 @@ def process_file_one_timestep(input_path, output_path, ds, t,
     dtau_s = q_s k_s dp / g
     """
 
-    species_label = None
     if species == 'SS' or species == 'DU':
         species += size_bin
         idx_size = int(size_bin) - 1
@@ -157,9 +155,6 @@ def process_file_one_timestep(input_path, output_path, ds, t,
         idx_size = 1  # hygroscopic radius bin
     else:
         idx_size = 0
-
-    if species_label is None:
-        species_label = species
 
     tau_thresh = 0.00001
 
