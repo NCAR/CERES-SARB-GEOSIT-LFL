@@ -276,6 +276,7 @@ def process_file_one_timestep(input_path, output_path, ds, t,
 
     # output_path is built source-aware by Source.build_output_name in the caller.
     filename_subsampled_out = output_path
+    os.makedirs(os.path.dirname(filename_subsampled_out), exist_ok=True)
     ds_sub_out = xr.Dataset({
         'DELP': da_delp_sub,
         'Extinction_Layer_Optical_Depth': da_tau_ext_sub,
