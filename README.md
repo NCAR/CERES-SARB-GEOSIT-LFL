@@ -43,6 +43,29 @@ Then run with both flags:
     --ceres --workdir /CERES/sarb/myuser/
 ```
 
+### MERRA-2 input
+
+To process MERRA-2 `inst3_3d_aer_Nv` daily files instead of GEOS-IT,
+pass `--source merra2`. MERRA-2 files are daily (8 timesteps per
+file), so the start/end pair should be a single hour (e.g.
+`--start 2008-07-01T00 --end 2008-07-01T00`); the script reads all
+8 timesteps from the matched daily file and writes 8 per-timestep
+outputs.
+
+```bash
+./run_species_optics.sh --source merra2 --bands sw01,sw02 \
+    --start 2008-07-01T00 --end 2008-07-01T00 --ceres
+./run_external_mix.sh --source merra2 --bands sw01,sw02 \
+    --start 2008-07-01T00 --end 2008-07-01T00 --ceres
+```
+
+Outputs land under `${workdir}/MERRA2_alpha_4/YYYY/MM/` with names
+like `MERRA2.aer_inst_3hr_glo_L288x180_v24.AER_SW01.2008-07-01T0000.nc4`.
+
+The MERRA-2 stream prefix (`MERRA2_100`/`200`/`300`/`400`) is auto-
+selected by year via a glob in `sources.py`; no manual mapping is
+needed.
+
 ### Daily Processing Pipeline
 
 `run_daily_processing.sh` orchestrates batch processing across date ranges, launching one background job per day:
@@ -57,6 +80,7 @@ Then run with both flags:
 - `--max-jobs N` - Limit concurrent background jobs (default: unlimited)
 - `--logdir DIR` - Directory for log files (default: `./logs`)
 - `--dry-run` - Preview what would run without executing
+- `--source SOURCE` - Input data source: `geosit` (default, 3-hourly files) or `merra2` (daily files)
 - `--ceres` - Use CERES production data paths
 - `--workdir DIR` - Workspace directory for output files (default with `--ceres`: `/CERES/sarb/dfillmor/`); other users should set this to `/CERES/sarb/<username>/`
 - `--optics-dir DIR` - Optics data directory (default with `--ceres`: `/CERES/sarb/dfillmor/Optics`); other users should point this at their unpacked copy of `Optics.tar`
