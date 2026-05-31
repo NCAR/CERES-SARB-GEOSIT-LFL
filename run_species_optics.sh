@@ -119,12 +119,16 @@ for BAND in "${BAND_LIST[@]}"; do
         done
     done
 
-    for SP in "${SPECIES_3BIN[@]}"; do
-        for BIN in "${SIZE_BINS_3[@]}"; do
-            echo ">>> species_optics.py --source $SOURCE --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
-            python species_optics.py --source "$SOURCE" --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+    # Nitrate (NO3AN) is GEOS-IT only — MERRA-2's GOCART aerosols carry no
+    # nitrate, so skip the 3-bin nitrate species entirely for --source merra2.
+    if [[ "$SOURCE" != "merra2" ]]; then
+        for SP in "${SPECIES_3BIN[@]}"; do
+            for BIN in "${SIZE_BINS_3[@]}"; do
+                echo ">>> species_optics.py --source $SOURCE --species $SP --size_bin $BIN ${BAND_ARGS[*]} ${TMPDIR_ARG[*]:-} ${EXTRA_ARGS[*]:-}"
+                python species_optics.py --source "$SOURCE" --species "$SP" --size_bin "$BIN" "${BAND_ARGS[@]}" "${TMPDIR_ARG[@]+"${TMPDIR_ARG[@]}"}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}"
+            done
         done
-    done
+    fi
 
     echo "All species processed for $BAND"
 done

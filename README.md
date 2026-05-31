@@ -66,6 +66,13 @@ The MERRA-2 stream prefix (`MERRA2_100`/`200`/`300`/`400`) is auto-
 selected by year via a glob in `sources.py`; no manual mapping is
 needed.
 
+**Nitrate is skipped for MERRA-2.** MERRA-2's GOCART aerosols carry no
+nitrate, so the three nitrate species (`NO3AN1`–`NO3AN3`) present in
+GEOS-IT are absent. `run_species_optics.sh` skips the nitrate species
+for `--source merra2`, and `species_optics.py` logs a warning and skips
+any species whose mixing ratio is missing from the input. MERRA-2 runs
+therefore mix 15 species; GEOS-IT runs mix 18.
+
 ### Daily Processing Pipeline
 
 `run_daily_processing.sh` orchestrates batch processing across date ranges, launching one background job per day:

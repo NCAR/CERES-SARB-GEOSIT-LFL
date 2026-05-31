@@ -457,6 +457,19 @@ if __name__ == '__main__':
         else:
             species_label = species_actual
 
+        # Skip gracefully if the source lacks this species' mixing ratio.
+        # MERRA-2's GOCART aerosols carry no nitrate, so a nitrate run on
+        # MERRA-2 has nothing to process; GEOS-IT has all species. The
+        # variable actually read inside process_file_one_timestep is the
+        # bin-suffixed name (== species_label, e.g. 'SS001', 'NO3AN1',
+        # 'SO4'), so check that rather than the bare species_actual.
+        if species_label not in ds.variables:
+            logging.warning('species %s not present in %s (source=%s); skipping',
+                            species_label, input_path, args.source)
+            print('species %s not in input; skipping' % species_label)
+            ds.close()
+            continue
+
         for t in range(ntime):
             output_path = src.build_output_name(
                 input_path=input_path,
